@@ -18,7 +18,9 @@ const defaults = {
   analyses: [],
   quiz: null
 };
-const load = (userId, name) => { const seeded={...defaults,profile:{...defaults.profile,name:name||defaults.profile.name}}; try { return { ...seeded, ...JSON.parse(localStorage.getItem(`study-sprint-data-${userId}`)) }; } catch { return seeded; } };
+const seedProfile = name => ({ ...defaults, profile: { ...defaults.profile, name: name || defaults.profile.name } });
+const mergeData = (raw, name) => ({ ...seedProfile(name), ...(raw || {}) });
+const loadLegacyLocal = (userId, name) => { try { const raw=localStorage.getItem(`study-sprint-data-${userId}`); return raw ? mergeData(JSON.parse(raw), name) : null; } catch { return null; } };
 const cleanStart = (name) => ({ ...defaults, profile: { ...defaults.profile, name: name || defaults.profile.name }, assignments: [], tests: [], sessions: [], streak: 0 });
 const day = (date) => new Intl.DateTimeFormat('en', { weekday:'short' }).format(new Date(`${date}T12:00:00`));
 const niceDate = (date) => new Intl.DateTimeFormat('en',{month:'short',day:'numeric'}).format(new Date(`${date}T12:00:00`));
@@ -37,11 +39,12 @@ const reasonFor = (task, day, limited=false) => { const left=daysUntil(task.due,
 const makeSmartPlan = (data, today=isoToday(), availableMinutes=data.profile.dailyGoal) => {
   const tasks=buildPlannerTasks(data).map(t=>({...t,remaining:Math.ceil(t.remaining/5)*5})); const sessions=data.sessions.filter(s=>s.complete||!s.generated); const horizon=Math.max(7,Math.min(30,...tasks.map(t=>Math.max(0,daysUntil(t.due,today)))+1));
   for(let offset=0;offset<horizon&&tasks.some(t=>t.remaining>0);offset++){
-    const date=dateAfter(today,offset); let capacity=Math.max(0,+availableMinutes||120); let guard=0;
-    while(capacity>=20&&tasks.some(t=>t.remaining>0)&&guard++<30){
-      const candidates=tasks.filter(t=>t.remaining>0).map(t=>{const left=Math.max(0,daysUntil(t.due,date)); const urgency=t.type==='test' ? Math.max(0,12-left*1.8) : Math.max(0,14-left*2.2); const workload=Math.min(8,t.remaining/35); const dailyNeed=t.remaining/Math.max(1,left+1); return {...t,score:urgency+priorityValue[t.priority]*2+difficultyValue[t.difficulty]+workload+dailyNeed/18};}).sort((a,b)=>b.score-a.score);
-      const task=candidates[0]; if(!task)break; const block=Math.min(capacity,task.remaining, task.type==='test'?45:50, Math.max(25,Math.ceil(task.remaining/Math.max(1,daysUntil(task.due,date)+1)/5)*5));
-      if(block<20)break; sessions.push({id:`plan-${task.type}-${task.id}-${date}-${guard}`,date,title:task.title,subject:task.subject,minutes:block,complete:false,generated:true,sourceType:task.type,sourceId:task.id,priority:task.priority,reason:reasonFor(task,date,availableMinutes<90)}); task.remaining-=block; capacity-=block;
+    const date=dateAfter(today,offset); let capacity=Math.max(0,+availableMinutes||120); let guard=0; const scheduledToday=new Set();
+    while(capacity>=20&&tasks.some(t=>t.remaining>0&&!scheduledToday.has(t.type+t.id))&&guard++<30){
+      const candidates=tasks.filter(t=>t.remaining>0&&!scheduledToday.has(t.type+t.id)).map(t=>{const left=Math.max(0,daysUntil(t.due,date)); const urgency=t.type==='test' ? Math.max(0,12-left*1.8) : Math.max(0,14-left*2.2); const workload=Math.min(8,t.remaining/35); const dailyNeed=t.remaining/Math.max(1,left+1); return {...t,score:urgency+priorityValue[t.priority]*2+difficultyValue[t.difficulty]+workload+dailyNeed/18};}).sort((a,b)=>b.score-a.score);
+      const picked=candidates[0]; if(!picked)break; const block=Math.min(capacity,picked.remaining, picked.type==='test'?45:50, Math.max(25,Math.ceil(picked.remaining/Math.max(1,daysUntil(picked.due,date)+1)/5)*5));
+      if(block<20)break; sessions.push({id:`plan-${picked.type}-${picked.id}-${date}-${guard}`,date,title:picked.title,subject:picked.subject,minutes:block,complete:false,generated:true,sourceType:picked.type,sourceId:picked.id,priority:picked.priority,reason:reasonFor(picked,date,availableMinutes<90)});
+      const task=tasks.find(t=>t.type===picked.type&&t.id===picked.id); task.remaining-=block; capacity-=block; scheduledToday.add(task.type+task.id);
     }
   }
   return {...data,sessions};
@@ -63,11 +66,32 @@ export default function App(){
 }
 
 function StudyApp({session}){
- const userId=session.user.id; const userName=session.user.user_metadata?.name; const onboardingKey=`study-sprint-onboarded-${userId}`; const onboardingHandled=useRef(null); const [isFirstLogin,setIsFirstLogin]=useState(false); const [today,setToday]=useState(isoToday); const [data,setData]=useState(()=>load(userId,userName)); const [tab,setTab]=useState('Dashboard'); const [modal,setModal]=useState(null); const [editing,setEditing]=useState(null); const [toast,setToast]=useState(''); const [timer,setTimer]=useState(null); const [seconds,setSeconds]=useState(25*60);
- useEffect(()=>{if(onboardingHandled.current===userId)return;onboardingHandled.current=userId;const firstLogin=!localStorage.getItem(onboardingKey);setIsFirstLogin(firstLogin);setData(firstLogin?cleanStart(userName):makeSmartPlan(load(userId,userName),isoToday()));if(firstLogin)localStorage.setItem(onboardingKey,'true')},[userId,userName,onboardingKey]);
- useEffect(()=>localStorage.setItem(`study-sprint-data-${userId}`,JSON.stringify(data)),[data,userId]);
+ const userId=session.user.id; const userName=session.user.user_metadata?.name; const [isFirstLogin,setIsFirstLogin]=useState(false); const [today,setToday]=useState(isoToday); const [data,setData]=useState(null); const [loaded,setLoaded]=useState(false); const [loadError,setLoadError]=useState(''); const [retry,setRetry]=useState(0); const [tab,setTab]=useState('Dashboard'); const [modal,setModal]=useState(null); const [editing,setEditing]=useState(null); const [toast,setToast]=useState(''); const [timer,setTimer]=useState(null); const [seconds,setSeconds]=useState(25*60); const [navOpen,setNavOpen]=useState(false);
+ useEffect(()=>{
+  let cancelled=false; setLoaded(false); setLoadError('');
+  (async()=>{
+   const {data:row,error}=await supabase.from('app_data').select('data').eq('user_id',userId).maybeSingle();
+   if(cancelled) return;
+   if(error){ setLoadError('Could not load your saved data. Check your connection and try again.'); return; }
+   if(row?.data){ setIsFirstLogin(false); setData(makeSmartPlan(mergeData(row.data,userName),isoToday())); setLoaded(true); return; }
+   const legacy=loadLegacyLocal(userId,userName);
+   const initial=legacy?makeSmartPlan(legacy,isoToday()):cleanStart(userName);
+   setIsFirstLogin(!legacy); setData(initial); setLoaded(true);
+   await supabase.from('app_data').upsert({user_id:userId,data:initial,updated_at:new Date().toISOString()});
+  })();
+  return ()=>{cancelled=true};
+ },[userId,userName,retry]);
+ const writeTimer=useRef(null);
+ useEffect(()=>{
+  if(!loaded) return;
+  clearTimeout(writeTimer.current);
+  writeTimer.current=setTimeout(()=>{ supabase.from('app_data').upsert({user_id:userId,data,updated_at:new Date().toISOString()}).then(({error})=>{ if(error) notify('Could not save changes — check your connection'); }); },500);
+  return ()=>clearTimeout(writeTimer.current);
+ },[data,userId,loaded]);
  useEffect(()=>{ if(!timer?.running || seconds===0) return; const x=setInterval(()=>setSeconds(s=>s>0?s-1:0),1000); return ()=>clearInterval(x); },[timer,seconds]);
- useEffect(()=>{const tick=()=>{const next=isoToday();if(next!==today){setToday(next);setData(d=>makeSmartPlan(d,next))}};const interval=setInterval(tick,60000);return()=>clearInterval(interval)},[today]);
+ useEffect(()=>{const tick=()=>{const next=isoToday();if(next!==today){setToday(next);setData(d=>d?makeSmartPlan(d,next):d)}};const interval=setInterval(tick,60000);return()=>clearInterval(interval)},[today]);
+ if(loadError) return <div className="auth-shell"><div className="auth-card loading-card"><div className="brandmark">⚡</div><p>{loadError}</p><button className="primary" style={{marginTop:18}} onClick={()=>setRetry(r=>r+1)}>Try again</button></div></div>;
+ if(!loaded) return <AuthLoading/>;
  const completed=data.sessions.filter(s=>s.complete).reduce((a,s)=>a+s.minutes,0); const totalToday=data.sessions.filter(s=>s.date===today).reduce((a,s)=>a+s.minutes,0); const pending=data.assignments.filter(a=>!a.done); const replan=next=>makeSmartPlan(next,today);
  const update = key => value => setData(d=>replan({...d,[key]:value}));
  const notify = msg => {setToast(msg);setTimeout(()=>setToast(''),2600)};
@@ -85,8 +109,9 @@ function StudyApp({session}){
  const setQuiz=quiz=>setData(d=>({...d,quiz}));
  const removeQuiz=()=>setData(d=>({...d,quiz:null}));
  const nav=['Dashboard','My work','Study plan','Analyzer','Quiz','Progress','Settings'];
- return <div className="app"><aside><div className="brand"><div className="brandmark">⚡</div><span>study<span>sprint</span></span></div><nav>{nav.map(n=><button className={tab===n?'active':''} onClick={()=>setTab(n)} key={n}><Icon>{({Dashboard:'⌂','My work':'▣','Study plan':'◷',Analyzer:'🔍',Quiz:'✎',Progress:'↗',Settings:'⚙'})[n]}</Icon>{n}</button>)}</nav><div className="side-bottom"><div className="streak"><span>🔥</span><div><b>{data.streak} day streak</b><small>Keep it going!</small></div></div><button className="help">? &nbsp; Need a hand?</button></div></aside>
- <main><header><div className="mobile-brand">⚡ study<span>sprint</span></div><div className="greeting"><p>{tab==='Dashboard'?'Good morning, '+data.profile.name+'!':tab}</p><span>{tab==='Dashboard'?'Let’s make today count.':'Your learning space, all in one place.'}</span></div><div className="header-right"><button className="bell">♧</button><div className="avatar">{data.profile.name[0]}</div></div></header>
+ const goTab=n=>{setTab(n);setNavOpen(false)};
+ return <div className="app">{navOpen&&<div className="nav-backdrop" onClick={()=>setNavOpen(false)}/>}<aside className={navOpen?'open':''}><div className="brand"><div className="brandmark">⚡</div><span>study<span>sprint</span></span></div><nav>{nav.map(n=><button className={tab===n?'active':''} onClick={()=>goTab(n)} key={n}><Icon>{({Dashboard:'⌂','My work':'▣','Study plan':'◷',Analyzer:'🔍',Quiz:'✎',Progress:'↗',Settings:'⚙'})[n]}</Icon>{n}</button>)}</nav><div className="side-bottom"><div className="streak"><span>🔥</span><div><b>{data.streak} day streak</b><small>Keep it going!</small></div></div><button className="help">? &nbsp; Need a hand?</button></div></aside>
+ <main><header><button className="nav-toggle" aria-label="Open menu" aria-expanded={navOpen} onClick={()=>setNavOpen(v=>!v)}>☰</button><div className="mobile-brand">⚡ study<span>sprint</span></div><div className="greeting"><p>{tab==='Dashboard'?'Good morning, '+data.profile.name+'!':tab}</p><span>{tab==='Dashboard'?'Let’s make today count.':'Your learning space, all in one place.'}</span></div><div className="header-right"><button className="bell">♧</button><div className="avatar">{data.profile.name[0]}</div></div></header>
  {tab==='Dashboard'&&<Dashboard {...{data,completed,totalToday,pending,setTab,setModal,createPlan,toggleSession,toggleAssignment,removeAssignment,isFirstLogin}} />}
  {tab==='My work'&&<Work data={data} setModal={setModal} toggleAssignment={toggleAssignment} removeAssignment={removeAssignment} startAssignmentTimer={startAssignmentTimer} editAssignment={setEditing} />}
  {tab==='Study plan'&&<Plan data={data} createPlan={createPlan} toggleSession={toggleSession} />}
