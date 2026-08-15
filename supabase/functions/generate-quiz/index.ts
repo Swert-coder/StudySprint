@@ -45,8 +45,9 @@ const QUIZ_SCHEMA = {
           options: { type: 'array', items: { type: 'string' }, description: 'Exactly 4 options for multiple-choice questions; an empty array for every other type' },
           answer: { type: 'string', description: 'The correct answer' },
           explanation: { type: 'string', description: 'One sentence on why this is the answer' },
+          topic: { type: 'string', description: 'A short topic or concept name this question tests, used to group weak areas in the results screen' },
         },
-        required: ['type', 'question', 'options', 'answer', 'explanation'],
+        required: ['type', 'question', 'options', 'answer', 'explanation', 'topic'],
         additionalProperties: false,
       },
     },
@@ -86,11 +87,13 @@ Deno.serve(async (req) => {
   if (!types.length) return json({ error: 'Choose at least one question type.' }, 400);
 
   const count = Math.min(MAX_QUESTIONS, Math.max(1, parseInt(body?.count, 10) || 5));
+  const difficulty = ['Easy', 'Medium', 'Hard'].includes(body?.difficulty) ? body.difficulty : null;
 
   const profile = body?.profile || {};
   const contextLines = [
     profile.gradeLevel && `Grade level: ${profile.gradeLevel}`,
     profile.className && `Class/subject: ${profile.className}`,
+    difficulty && `Target difficulty: ${difficulty}`,
   ].filter(Boolean).join('\n');
 
   const userMessage = `Question types to use: ${types.join(', ')}\nNumber of questions: ${count}\n\nStudent context:\n${contextLines || 'No additional context was shared.'}\n\nSource material:\n"""\n${trimmedText}\n"""`;
