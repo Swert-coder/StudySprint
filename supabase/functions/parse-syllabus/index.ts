@@ -37,6 +37,7 @@ Rules:
 - Only extract items actually present in the syllabus text. Never invent assignments, dates, teacher names, or grading details that aren't stated.
 - If the syllabus describes a recurring pattern (e.g. "reading response due every Monday") without listing specific dates, extract it as ONE item describing the pattern in notes — don't guess every individual occurrence.
 - A no-school item that spans a multi-day range (e.g. "Nov 27-28", "Dec 20 - Jan 2 Winter Break") must be expanded into one separate no-school item per calendar day in that range, each with the same title and its own date — a single item can only ever hold one date, so a 2-day break needs 2 items, a week-long break needs one item per day of that week.
+- Output at most 80 items total. If the syllabus lists more than that, keep the highest-value ones (tests, projects, major deadlines, no-school days) and fold lower-priority recurring items (routine weekly homework/reading) into fewer, pattern-style entries rather than one per week — never truncate mid-item.
 - If the text doesn't look like a syllabus at all (e.g. it's blank or unrelated), return an empty items array and empty className/teacher/term/gradingInfo rather than guessing.`;
 
 const SYLLABUS_SCHEMA = {
@@ -99,7 +100,7 @@ Deno.serve(async (req) => {
       headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-opus-5',
-        max_tokens: 4096,
+        max_tokens: 16000,
         system: SYSTEM_PROMPT,
         output_config: { effort: 'medium', format: { type: 'json_schema', schema: SYLLABUS_SCHEMA } },
         messages: [{ role: 'user', content: userMessage }],
