@@ -34,6 +34,7 @@ export const defaults = {
   analyses: [],
   quiz: null,
   quizHistory: [],
+  syllabi: [],
   assistant: { history: [] },
   personalization: {
     subjectEstimates: {},
@@ -54,6 +55,7 @@ export const mergeData = (raw, name) => {
   const merged = { ...base, ...(raw || {}) };
   merged.profile = { ...base.profile, ...(raw?.profile || {}) };
   merged.assistant = { history: raw?.assistant?.history || [] };
+  merged.syllabi = raw?.syllabi || [];
   merged.personalization = {
     subjectEstimates: { ...(raw?.personalization?.subjectEstimates || {}) },
     typeEstimates: {

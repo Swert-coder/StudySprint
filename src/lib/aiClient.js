@@ -42,3 +42,12 @@ export async function gradeOpenAnswers(questions, studentAnswers, profile) {
   if (res?.error) throw new Error(res.error);
   return res.results; // [{index, correct, feedback}]
 }
+
+export async function parseSyllabus(text, today = isoToday()) {
+  if (!supabase) throw new Error('Syllabus import needs a connected backend.');
+  const { data: res, error } = await supabase.functions.invoke('parse-syllabus', { body: { text, today } });
+  if (error) throw new Error(error.message || 'The syllabus reader could not be reached.');
+  if (res?.error) throw new Error(res.error);
+  // The model isn't schema-constrained on array length, so cap defensively.
+  return { ...res, items: (res.items || []).slice(0, 80) }; // { className, teacher, term, gradingInfo, items }
+}

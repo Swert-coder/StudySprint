@@ -27,7 +27,13 @@ header{height:100px;padding:25px 5.5%;display:flex;justify-content:space-between
 .greeting span{font-size:13px;color:var(--muted)}
 .header-right{display:flex;align-items:center;gap:18px}
 .bell{background:#1c1a29;color:#b7b4c9;border-radius:50%;height:34px;width:34px}
-.avatar{height:36px;width:36px;border-radius:50%;display:grid;place-items:center;background:#f4bba7;color:#fff;font-weight:700}
+.avatar{height:36px;width:36px;border-radius:50%;display:grid;place-items:center;background:#f4bba7;color:#fff;font-weight:700;font-size:14px}
+.profile-menu-wrap{position:relative}
+.profile-menu-backdrop{position:fixed;inset:0;z-index:30}
+.profile-menu{position:absolute;top:46px;right:0;z-index:31;background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:8px;min-width:180px;display:grid;gap:2px;box-shadow:0 16px 34px #00000070}
+.profile-menu-name{padding:8px 10px 10px;font-size:12px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border-soft);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profile-menu button{width:100%;text-align:left;background:none;color:var(--text);padding:9px 10px;border-radius:8px;font-size:13px;font-weight:600}
+.profile-menu button:hover{background:var(--input-bg)}
 .mobile-brand{display:none}
 .page{padding:38px 5.5%;max-width:1400px;margin:auto}
 .hero{border-radius:22px;padding:44px 48px;min-height:278px;color:#fff;background:linear-gradient(115deg,#6254dc,#8275ed);position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:center;box-shadow:0 20px 60px #29216622,0 0 60px #6d5be033}
@@ -267,9 +273,10 @@ header{height:100px;padding:25px 5.5%;display:flex;justify-content:space-between
 .side-secondary-nav button{color:var(--muted-2);background:transparent;border-radius:8px;text-align:left;padding:8px 13px;font-weight:600;font-size:12.5px}
 .side-secondary-nav button.active{color:#b5a8ff;background:#1d1a3455}
 .side-secondary-nav button:hover{color:var(--muted)}
+.side-nav-label{display:block;font-size:10px;font-weight:700;letter-spacing:.6px;color:var(--muted-2);text-transform:uppercase;padding:0 13px 6px}
 
 /* Right Now widget */
-.right-now{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:24px}
+.right-now{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:20px}
 .time-pill-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 .time-pill{background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:9px 16px;font-size:13px;font-weight:700}
 .time-pill:hover{border-color:#4a4468}
@@ -444,4 +451,40 @@ header{height:100px;padding:25px 5.5%;display:flex;justify-content:space-between
   .quiz-choices-tf{grid-template-columns:1fr}
   .cal-day-cell{padding:4px}
   .cal-toolbar{flex-wrap:wrap}
+}
+
+/* Page heading with multiple actions */
+.page-heading-actions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* Syllabus import */
+.syllabus-import{display:grid;gap:18px}
+.syllabus-meta-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px}
+.syllabus-grading{margin:12px 0 0}
+.syllabus-group{margin-bottom:0}
+.syllabus-item-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border-soft)}
+.syllabus-item-row:last-child{border-bottom:0}
+.syllabus-item-row.excluded{opacity:.45}
+.syllabus-item-row input[type="checkbox"]{width:17px;height:17px;flex:none;accent-color:#8f7ff8}
+.syllabus-item-row select{border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);background:var(--input-bg);font-family:inherit;font-size:12px;flex:none;width:120px}
+.syllabus-title-cell{flex:1.4;min-width:140px;display:grid;gap:3px}
+.syllabus-title-input{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);background:var(--input-bg);font-family:inherit;font-size:13px}
+.syllabus-dup-badge{color:#f0c268;font-size:10.5px}
+.syllabus-date-cell{flex:1;min-width:130px;display:grid;gap:3px}
+.syllabus-date-cell input{width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);background:var(--input-bg);font-family:inherit;font-size:12.5px}
+.syllabus-date-missing{border-color:#7a2a3a!important}
+.syllabus-hint{color:#ff92a4;font-size:10.5px}
+.syllabus-notes-input{flex:1.2;min-width:140px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);background:var(--input-bg);font-family:inherit;font-size:12.5px}
+.syllabus-confirm-bar{position:sticky;bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:16px;background:var(--panel-2);border:1px solid var(--border);border-radius:14px;padding:16px 20px;box-shadow:0 12px 30px #00000060}
+.syllabus-confirm-bar>span{font-size:13px;color:var(--text)}
+.syllabus-confirm-actions{display:flex;gap:10px}
+.syllabus-confirm-actions .primary{padding:11px 20px}
+.syllabus-confirm-actions .reset{background:var(--input-bg);border:1px solid var(--border);border-radius:9px;padding:11px 16px;color:var(--muted);font-weight:700}
+@media(max-width:700px){
+  .syllabus-meta-grid{grid-template-columns:1fr}
+  .syllabus-item-row{flex-wrap:wrap}
+  .syllabus-item-row select{width:auto;flex:1}
+  .syllabus-title-cell,.syllabus-date-cell,.syllabus-notes-input{flex:1 1 100%}
+  .syllabus-confirm-bar{flex-direction:column;align-items:stretch}
+  .syllabus-confirm-actions{justify-content:stretch}
+  .syllabus-confirm-actions button{flex:1}
 }

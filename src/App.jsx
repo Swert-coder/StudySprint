@@ -5,6 +5,7 @@ import { mergeData, loadLegacyLocal, cleanStart } from './lib/defaults';
 import { makeSmartPlan, panicPlan } from './lib/planner';
 import { recordActual, recordCompletionHour } from './lib/personalization';
 import { applyAction, addTopicsToWork as libAddTopicsToWork, startSprintFromPicks } from './lib/actions';
+import { applySyllabusImport } from './lib/syllabus';
 
 import { AuthConfiguration, AuthLoading, AuthPage, ResetPassword } from './components/Auth/Auth';
 import Icon from './components/Icon';
@@ -20,15 +21,15 @@ import AssistantPanel from './components/Assistant/AssistantPanel';
 import { Modal, EditAssignmentModal } from './components/Modal';
 import EmergencyModal from './components/EmergencyModal';
 import SprintSession from './components/SprintSession';
+import SyllabusImport from './components/Syllabus/SyllabusImport';
 
 const PRIMARY_NAV = [
   { key: 'Dashboard', icon: '⌂' },
   { key: 'Calendar', icon: '▦' },
   { key: 'Assignments', icon: '▣' },
-  { key: 'Practice', icon: '✎' },
-  { key: 'AI Organizer', icon: '✦' },
 ];
-const SECONDARY_NAV = ['Study plan', 'Progress', 'Analyzer', 'Settings'];
+const AI_NAV = ['AI Organizer', 'Practice', 'Analyzer', 'Import Syllabus'];
+const SECONDARY_NAV = ['Study plan', 'Progress', 'Settings'];
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -63,6 +64,7 @@ function StudyApp({ session }) {
   const [editing, setEditing] = useState(null);
   const [toast, setToast] = useState('');
   const [navOpen, setNavOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [sprintConfig, setSprintConfig] = useState(null); // { queue, mode: 'session'|'assignment'|'freeform' }
 
   const dataRef = useRef(data);
@@ -167,6 +169,15 @@ function StudyApp({ session }) {
     notify('A simplified plan is ready — lower-priority work was pushed back');
   };
   const addTopicsToWork = (topics) => { setData((d) => replan(libAddTopicsToWork(d, topics, today))); notify('Added to your study plan'); };
+  const importSyllabus = (meta, items) => {
+    const preview = applySyllabusImport(data, meta, items, today);
+    setData((d) => replan(applySyllabusImport(d, meta, items, today).data));
+    const parts = [];
+    if (preview.addedAssignments) parts.push(`${preview.addedAssignments} assignment${preview.addedAssignments === 1 ? '' : 's'}`);
+    if (preview.addedTests) parts.push(`${preview.addedTests} test${preview.addedTests === 1 ? '' : 's'}`);
+    if (preview.addedBlocked) parts.push(`${preview.addedBlocked} no-school day${preview.addedBlocked === 1 ? '' : 's'}`);
+    notify(parts.length ? `Added ${parts.join(', ')} from ${meta.className}` : 'Nothing new to add from that syllabus');
+  };
   const removeAnalysis = (id) => setData((d) => ({ ...d, analyses: d.analyses.filter((a) => a.id !== id) }));
   const addAnalysis = (entry) => setData((d) => ({ ...d, analyses: [entry, ...d.analyses].slice(0, 20) }));
   const saveQuizAttempt = (attempt) => setData((d) => ({ ...d, quizHistory: [attempt, ...d.quizHistory].slice(0, 20) }));
@@ -217,9 +228,18 @@ function StudyApp({ session }) {
         <nav>{PRIMARY_NAV.map((n) => (
           <button className={tab === n.key ? 'active' : ''} onClick={() => goTab(n.key)} key={n.key}><Icon>{n.icon}</Icon>{n.key}</button>
         ))}</nav>
-        <div className="side-secondary-nav">{SECONDARY_NAV.map((n) => (
-          <button className={tab === n ? 'active' : ''} onClick={() => goTab(n)} key={n}>{n}</button>
-        ))}</div>
+        <div className="side-secondary-nav">
+          <span className="side-nav-label">AI Tools</span>
+          {AI_NAV.map((n) => (
+            <button className={tab === n ? 'active' : ''} onClick={() => goTab(n)} key={n}>{n}</button>
+          ))}
+        </div>
+        <div className="side-secondary-nav">
+          <span className="side-nav-label">More</span>
+          {SECONDARY_NAV.map((n) => (
+            <button className={tab === n ? 'active' : ''} onClick={() => goTab(n)} key={n}>{n}</button>
+          ))}
+        </div>
         <div className="side-bottom">
           <div className="streak"><span>🔥</span><div><b>{data.streak} day streak</b><small>Keep it going!</small></div></div>
         </div>
@@ -232,7 +252,21 @@ function StudyApp({ session }) {
             <p>{tab === 'Dashboard' ? `Good ${timeOfDay()}, ${data.profile.name}!` : tab}</p>
             <span>{tab === 'Dashboard' ? 'Let’s make today count.' : 'Your learning space, all in one place.'}</span>
           </div>
-          <div className="header-right"><div className="avatar">{data.profile.name[0]}</div></div>
+          <div className="header-right">
+            <div className="profile-menu-wrap">
+              <button className="avatar" aria-label="Account menu" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((v) => !v)}>{data.profile.name[0]}</button>
+              {profileMenuOpen && (
+                <>
+                  <div className="profile-menu-backdrop" onClick={() => setProfileMenuOpen(false)} />
+                  <div className="profile-menu">
+                    <div className="profile-menu-name">{data.profile.name}</div>
+                    <button onClick={() => { goTab('Settings'); setProfileMenuOpen(false); }}>⚙ Settings</button>
+                    <button onClick={() => supabase.auth.signOut()}>⎋ Log out</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </header>
 
         {tab === 'Dashboard' && (
@@ -246,9 +280,10 @@ function StudyApp({ session }) {
           />
         )}
         {tab === 'Calendar' && <Calendar data={data} onEditAssignment={setEditing} onToggleSession={toggleSession} onStartSessionSprint={startSessionSprint} onRemoveTest={removeTest} />}
-        {tab === 'Assignments' && <Work data={data} setModal={setModal} toggleAssignment={toggleAssignment} removeAssignment={removeAssignment} removeTest={removeTest} startAssignmentSprint={startAssignmentSprint} editAssignment={setEditing} />}
+        {tab === 'Assignments' && <Work data={data} setModal={setModal} setTab={setTab} toggleAssignment={toggleAssignment} removeAssignment={removeAssignment} removeTest={removeTest} startAssignmentSprint={startAssignmentSprint} editAssignment={setEditing} />}
         {tab === 'Practice' && <Quiz profile={data.profile} setTab={setTab} notify={notify} saveAttempt={saveQuizAttempt} addTopicsToWork={addTopicsToWork} />}
         {tab === 'AI Organizer' && <AssistantPanel data={data} onApplyAction={runAction} onOpenPanic={() => setModal('emergency')} />}
+        {tab === 'Import Syllabus' && <SyllabusImport data={data} onClose={() => setTab('Assignments')} onImport={importSyllabus} />}
         {tab === 'Study plan' && <Plan data={data} createPlan={createPlan} toggleSession={toggleSession} />}
         {tab === 'Progress' && <Progress data={data} completed={completed} />}
         {tab === 'Analyzer' && <Analyzer data={data} profile={data.profile} setTab={setTab} notify={notify} addAnalysis={addAnalysis} removeAnalysis={removeAnalysis} addTopicsToWork={addTopicsToWork} />}

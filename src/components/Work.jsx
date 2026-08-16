@@ -1,12 +1,15 @@
 import { niceDate } from '../lib/dates';
 import { Assignment } from './shared';
 
-export default function Work({ data, setModal, toggleAssignment, removeAssignment, removeTest, startAssignmentSprint, editAssignment }) {
+export default function Work({ data, setModal, setTab, toggleAssignment, removeAssignment, removeTest, startAssignmentSprint, editAssignment }) {
   return (
     <div className="page">
       <div className="page-heading">
         <div><h1>Assignments</h1><p>Everything you need to get done, in one calm place.</p></div>
-        <button className="primary" onClick={() => setModal('assignments')}>＋ Assignment</button>
+        <div className="page-heading-actions">
+          <button className="edit-btn" onClick={() => setTab('Import Syllabus')}>⇪ Import syllabus</button>
+          <button className="primary" onClick={() => setModal('assignments')}>＋ Assignment</button>
+        </div>
       </div>
       <div className="panel work-list">
         <div className="section-title"><h2>Assignments</h2><span>{data.assignments.filter((x) => !x.done).length} remaining</span></div>
