@@ -10,7 +10,7 @@ const MONTH_LABEL = (iso) => new Intl.DateTimeFormat('en', { month: 'long', year
 const WEEK_LABEL = (iso) => new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(`${iso}T12:00:00`));
 const DAY_LABEL = (iso) => new Intl.DateTimeFormat('en', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(`${iso}T12:00:00`));
 
-export default function Calendar({ data, onEditAssignment, onToggleSession, onStartSessionSprint }) {
+export default function Calendar({ data, onEditAssignment, onToggleSession, onStartSessionSprint, onRemoveTest }) {
   const [view, setView] = useState('month');
   const [cursor, setCursor] = useState(isoToday());
   const [selected, setSelected] = useState(null);
@@ -52,7 +52,7 @@ export default function Calendar({ data, onEditAssignment, onToggleSession, onSt
         {view === 'week' && <WeekView data={data} cursor={cursor} onSelectEvent={handleSelectEvent} />}
         {view === 'day' && <DayView data={data} cursor={cursor} onToggleSession={onToggleSession} onSelectEvent={handleSelectEvent} />}
       </div>
-      {selected && <DayDetailModal event={selected} onClose={() => setSelected(null)} onStartSessionSprint={onStartSessionSprint} onToggleSession={onToggleSession} />}
+      {selected && <DayDetailModal event={selected} onClose={() => setSelected(null)} onStartSessionSprint={onStartSessionSprint} onToggleSession={onToggleSession} onRemoveTest={onRemoveTest} />}
     </div>
   );
 }

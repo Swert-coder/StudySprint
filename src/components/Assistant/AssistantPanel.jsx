@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { isoToday } from '../../lib/dates';
 import { matchLocalCommand } from '../../lib/commandMatcher';
 import { needsConfirmation } from '../../lib/actions';
@@ -19,14 +19,29 @@ function describeAction(action) {
     case 'create_test': return `Add "${p.title}" test${p.date ? ` on ${p.date}` : ''}${p.material ? ` covering ${p.material}` : ''}?`;
     case 'move_sessions': return `Move ${p.scope === 'today' ? "today's remaining sessions" : 'this session'} to ${p.toDate}?`;
     case 'set_weekday_schedule': return 'Update your weekly available-time schedule?';
+    case 'delete_test': return `Remove "${p.titleMatch}" and its study sessions?`;
     default: return 'Apply this change?';
   }
+}
+
+// Guards against the same create_assignment/create_test showing up twice in one AI response
+// (occasional LLM redundancy) — same type + title + date collapses to a single action.
+function dedupeActions(actions) {
+  const seen = new Set();
+  return actions.filter((a) => {
+    if (a.type !== 'create_assignment' && a.type !== 'create_test') return true;
+    const key = `${a.type}:${(a.payload?.title || '').trim().toLowerCase()}:${a.payload?.due || a.payload?.date || ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export default function AssistantPanel({ data, onApplyAction, onOpenPanic }) {
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState(null);
   const [loading, setLoading] = useState(false);
+  const confirmedRef = useRef(false);
   const today = isoToday();
   const history = data.assistant?.history || [];
 
@@ -43,7 +58,7 @@ export default function AssistantPanel({ data, onApplyAction, onOpenPanic }) {
     if (local?.kind === 'panic') { onLogAssistant("Let's figure out how much time you have."); onOpenPanic(); return; }
     if (local?.kind === 'reply') { onLogAssistant(local.reply); return; }
     if (local?.kind === 'action') {
-      if (needsConfirmation(local.action)) { setPending([local.action]); onLogAssistant(describeAction(local.action)); return; }
+      if (needsConfirmation(local.action)) { confirmedRef.current = false; setPending([local.action]); onLogAssistant(describeAction(local.action)); return; }
       onLogAssistant(onApplyAction(local.action));
       return;
     }
@@ -52,10 +67,11 @@ export default function AssistantPanel({ data, onApplyAction, onOpenPanic }) {
     try {
       const res = await callAssistant(trimmed, data, today);
       onLogAssistant(res.reply);
-      const toConfirm = (res.actions || []).filter(needsConfirmation);
-      const autoApply = (res.actions || []).filter((a) => !needsConfirmation(a));
+      const actions = dedupeActions(res.actions || []);
+      const toConfirm = actions.filter(needsConfirmation);
+      const autoApply = actions.filter((a) => !needsConfirmation(a));
       for (const a of autoApply) onLogAssistant(onApplyAction(a));
-      if (toConfirm.length) setPending(toConfirm);
+      if (toConfirm.length) { confirmedRef.current = false; setPending(toConfirm); }
     } catch (err) {
       onLogAssistant(err.message || 'Something went wrong reaching the AI organizer.');
     } finally {
@@ -63,11 +79,21 @@ export default function AssistantPanel({ data, onApplyAction, onOpenPanic }) {
     }
   };
 
+  // confirmedRef blocks a second Confirm click (or a double-fired click event) from re-applying
+  // the same pending actions before React has re-rendered to remove the confirmation card.
   const confirmPending = () => {
-    for (const a of pending) onLogAssistant(onApplyAction(a));
+    if (!pending || confirmedRef.current) return;
+    confirmedRef.current = true;
+    const actions = pending;
     setPending(null);
+    for (const a of actions) onLogAssistant(onApplyAction(a));
   };
-  const cancelPending = () => { onLogAssistant('No changes made.'); setPending(null); };
+  const cancelPending = () => {
+    if (!pending || confirmedRef.current) return;
+    confirmedRef.current = true;
+    setPending(null);
+    onLogAssistant('No changes made.');
+  };
 
   return (
     <div className="page assistant-page">

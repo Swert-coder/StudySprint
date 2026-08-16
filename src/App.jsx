@@ -147,6 +147,10 @@ function StudyApp({ session }) {
     setData((d) => replan({ ...d, assignments: d.assignments.filter((a) => a.id !== id), sessions: d.sessions.filter((s) => s.sourceId !== id) }));
     notify('Assignment removed — plan refreshed');
   };
+  const removeTest = (id) => {
+    if (!window.confirm('Remove this test? Its scheduled study sessions will be removed too.')) return;
+    notify(runAction({ type: 'delete_test', payload: { id } }) || 'Test removed — plan refreshed');
+  };
   const toggleSession = (id) => {
     const found = data.sessions.find((s) => s.id === id);
     setData((d) => {
@@ -241,8 +245,8 @@ function StudyApp({ session }) {
             onStartTodaySprint={startTodaySprint}
           />
         )}
-        {tab === 'Calendar' && <Calendar data={data} onEditAssignment={setEditing} onToggleSession={toggleSession} onStartSessionSprint={startSessionSprint} />}
-        {tab === 'Assignments' && <Work data={data} setModal={setModal} toggleAssignment={toggleAssignment} removeAssignment={removeAssignment} startAssignmentSprint={startAssignmentSprint} editAssignment={setEditing} />}
+        {tab === 'Calendar' && <Calendar data={data} onEditAssignment={setEditing} onToggleSession={toggleSession} onStartSessionSprint={startSessionSprint} onRemoveTest={removeTest} />}
+        {tab === 'Assignments' && <Work data={data} setModal={setModal} toggleAssignment={toggleAssignment} removeAssignment={removeAssignment} removeTest={removeTest} startAssignmentSprint={startAssignmentSprint} editAssignment={setEditing} />}
         {tab === 'Practice' && <Quiz profile={data.profile} setTab={setTab} notify={notify} saveAttempt={saveQuizAttempt} addTopicsToWork={addTopicsToWork} />}
         {tab === 'AI Organizer' && <AssistantPanel data={data} onApplyAction={runAction} onOpenPanic={() => setModal('emergency')} />}
         {tab === 'Study plan' && <Plan data={data} createPlan={createPlan} toggleSession={toggleSession} />}

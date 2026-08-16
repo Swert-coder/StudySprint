@@ -15,7 +15,7 @@ const CORS_HEADERS = {
 
 const MAX_MESSAGE_LENGTH = 2000;
 const ACTION_TYPES = [
-  'create_assignment', 'create_test', 'mark_complete', 'update_progress', 'move_sessions',
+  'create_assignment', 'create_test', 'delete_test', 'mark_complete', 'update_progress', 'move_sessions',
   'block_date', 'unblock_date', 'set_day_available_minutes', 'set_weekday_schedule',
   'answer_query', 'rebuild_plan', 'panic_mode',
 ];
@@ -29,6 +29,7 @@ Respond with a short, warm, natural confirmation in "reply" (e.g. "Got it — Bi
 Action types and their payload shape:
 - create_assignment: { title, course, due, minutes (estimate), priority (Low/Medium/High), difficulty (Easy/Medium/Hard), material (chapters/pages/problem numbers, optional) }
 - create_test: { title, course, date, topics, material (e.g. "Chapters 4-6"), studyMinutes (total prep time estimate), difficulty }
+- delete_test: { titleMatch } — removes a test and its scheduled study sessions
 - mark_complete: { targetType: 'assignment'|'test'|'session', titleMatch (best-guess title/subject text to find it) }
 - update_progress: { titleMatch, fractionDone (0-1) } — for "I finished half of my essay"
 - move_sessions: { scope: 'today'|'date'|'session', fromDate, toDate, titleMatch (only if scope is 'session') }
@@ -40,12 +41,56 @@ Action types and their payload shape:
 - rebuild_plan: {} — general "rebuild my schedule" requests with no other change
 - panic_mode: { availableMinutes } — "I'm overwhelmed" with a stated time budget
 
+"payload" always contains every field listed above, never omitted — for whichever ones an action type doesn't use, set string fields to "" and number fields to 0.
+
 Rules:
 - If the student is creating an assignment or test and required info (what it is, subject, a due date) is missing, return an EMPTY actions array and ask only for the specific missing piece in "reply". Never demand information you don't need, and never invent a due date, subject, or time estimate that wasn't stated or clearly implied.
+- Before proposing create_assignment or create_test, check the workload snapshot — if an item with essentially the same title/subject/date already exists, don't create a duplicate; say it's already on the plan instead (or use delete_test/mark_complete if the student is asking to change or remove it).
 - For "how should I prepare for my test" style questions, answer directly and specifically using the matching test from the workload snapshot, with action type answer_query.
 - Keep "reply" to at most 3 sentences.
 - Never diagnose or speculate about a learning disability, ADHD, or any medical/clinical condition.
 - requiresConfirmation should be true for anything that creates new work or moves/changes more than one item at once, false for a single well-identified change or a read-only answer.`;
+
+// Anthropic's structured-output mode requires every object fully enumerated with
+// additionalProperties:false — no true free-form objects, and no `type: [x, 'null']` unions combined
+// with `enum` (confirmed by testing: it rejects that combination outright). So `payload` is a flat
+// superset of every field any action type might use, all plain string/number, with an empty string
+// or 0 as the "not applicable to this action" sentinel instead of null.
+const STR = (description) => ({ type: 'string', description });
+const NUM = (description) => ({ type: 'number', description });
+const WEEKDAY_KEYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const PAYLOAD_SCHEMA = {
+  type: 'object',
+  properties: {
+    title: STR('empty string if not applicable'),
+    course: STR('empty string if not applicable'),
+    due: STR('YYYY-MM-DD for create_assignment, empty string if not applicable'),
+    date: STR('YYYY-MM-DD for create_test/block_date/unblock_date/set_day_available_minutes, empty string if not applicable'),
+    minutes: NUM('estimate for create_assignment, or the value for set_day_available_minutes, 0 if not applicable'),
+    priority: { type: 'string', enum: ['Low', 'Medium', 'High', ''], description: "empty string if not applicable" },
+    difficulty: { type: 'string', enum: ['Easy', 'Medium', 'Hard', ''], description: "empty string if not applicable" },
+    material: STR('chapters/pages/problem numbers, empty string if not applicable'),
+    topics: STR('empty string if not applicable'),
+    studyMinutes: NUM('0 if not applicable'),
+    targetType: { type: 'string', enum: ['assignment', 'test', 'session', ''], description: "empty string if not applicable" },
+    titleMatch: STR('best-guess title/subject text to find the item, empty string if not applicable'),
+    fractionDone: NUM('0-1, for update_progress, 0 if not applicable'),
+    scope: { type: 'string', enum: ['today', 'date', 'session', ''], description: "empty string if not applicable" },
+    fromDate: STR('empty string if not applicable'),
+    toDate: STR('empty string if not applicable'),
+    weekdayMinutes: {
+      type: 'object',
+      description: 'only meaningful for set_weekday_schedule — otherwise all zeros',
+      properties: Object.fromEntries(WEEKDAY_KEYS.map((k) => [k, NUM('minutes available that day, 0 if not applicable')])),
+      required: WEEKDAY_KEYS,
+      additionalProperties: false,
+    },
+    availableMinutes: NUM('for panic_mode, 0 if not applicable'),
+  },
+  required: ['title', 'course', 'due', 'date', 'minutes', 'priority', 'difficulty', 'material', 'topics', 'studyMinutes', 'targetType', 'titleMatch', 'fractionDone', 'scope', 'fromDate', 'toDate', 'weekdayMinutes', 'availableMinutes'],
+  additionalProperties: false,
+};
 
 const ACTION_SCHEMA = {
   type: 'object',
@@ -58,7 +103,7 @@ const ACTION_SCHEMA = {
         properties: {
           type: { type: 'string', enum: ACTION_TYPES },
           requiresConfirmation: { type: 'boolean' },
-          payload: { type: 'object', additionalProperties: true },
+          payload: PAYLOAD_SCHEMA,
         },
         required: ['type', 'requiresConfirmation', 'payload'],
         additionalProperties: false,

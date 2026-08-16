@@ -8,7 +8,7 @@ const randomColor = () => ASSIGNMENT_COLORS[Math.floor(Math.random() * ASSIGNMEN
 
 // Actions in this set always require an explicit confirmation tap, no matter what the AI's own
 // `requiresConfirmation` hint says — defense in depth against a bad/ambiguous model response.
-const ALWAYS_CONFIRM = new Set(['create_assignment', 'create_test', 'set_weekday_schedule']);
+const ALWAYS_CONFIRM = new Set(['create_assignment', 'create_test', 'set_weekday_schedule', 'delete_test']);
 
 export function needsConfirmation(action) {
   if (action.type === 'move_sessions' && action.payload?.scope && action.payload.scope !== 'session') return true;
@@ -54,6 +54,18 @@ export function applyAction(action, data, today = isoToday()) {
       };
       test.chapterPlan = chapters.length ? buildExamPlan(test, today) : null;
       return { data: { ...data, tests: [...data.tests, test] }, message: `Added "${test.title}" — a study plan is ready.` };
+    }
+    case 'delete_test': {
+      const test = resolveTest(data, payload);
+      if (!test) return { data, message: `Couldn't find that test.` };
+      return {
+        data: {
+          ...data,
+          tests: data.tests.filter((t) => t.id !== test.id),
+          sessions: data.sessions.filter((s) => !(s.sourceType === 'test' && s.sourceId === test.id)),
+        },
+        message: `Removed "${test.title}" and its study sessions.`,
+      };
     }
     case 'mark_complete': {
       if (payload.targetType === 'test') {

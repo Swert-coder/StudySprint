@@ -1,7 +1,7 @@
 import { niceDate } from '../lib/dates';
 import { Assignment } from './shared';
 
-export default function Work({ data, setModal, toggleAssignment, removeAssignment, startAssignmentSprint, editAssignment }) {
+export default function Work({ data, setModal, toggleAssignment, removeAssignment, removeTest, startAssignmentSprint, editAssignment }) {
   return (
     <div className="page">
       <div className="page-heading">
@@ -29,6 +29,7 @@ export default function Work({ data, setModal, toggleAssignment, removeAssignmen
               <small>{t.course} · {t.topics}{t.chapterPlan?.length ? ' · prep plan ready' : ''}</small>
             </div>
             <strong>{niceDate(t.date)}</strong>
+            <button className="remove" aria-label={`Remove ${t.title}`} title="Remove test" onClick={() => removeTest(t.id)}>×</button>
           </div>
         ))}
         {!data.tests.length && <p className="muted">No tests yet.</p>}

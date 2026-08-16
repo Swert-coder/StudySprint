@@ -107,12 +107,19 @@ export function makeSmartPlan(data, today = isoToday(), overrides = null) {
     const scheduledToday = new Set();
     while (capacity >= 20 && tasks.some((t) => t.remaining > 0 && !scheduledToday.has(t.type + t.id)) && guard++ < 30) {
       const candidates = tasks
-        .filter((t) => t.remaining > 0 && !scheduledToday.has(t.type + t.id))
+        // Never schedule a task's remaining work on or after its own due date — only strictly
+        // before it, so a blocked day or capacity shortfall can never push study time onto or past
+        // the deadline itself.
+        .filter((t) => t.remaining > 0 && !scheduledToday.has(t.type + t.id) && daysUntil(t.due, date) > 0)
         .map((t) => ({ ...t, score: scoreTask(t, date) }))
         .sort((a, b) => b.score - a.score);
       const picked = candidates[0];
       if (!picked) break;
-      const block = Math.min(capacity, picked.remaining, picked.type === 'test' ? 45 : 50, Math.max(25, Math.ceil(picked.remaining / Math.max(1, daysUntil(picked.due, date) + 1) / 5) * 5));
+      // Pace each block against the number of valid days actually remaining before the due date
+      // (not including the due date), so a task's remaining time spreads out instead of cramming
+      // into whichever days happen to score highest.
+      const daysLeftBeforeDue = Math.max(1, daysUntil(picked.due, date));
+      const block = Math.min(capacity, picked.remaining, picked.type === 'test' ? 45 : 50, Math.max(25, Math.ceil(picked.remaining / daysLeftBeforeDue / 5) * 5));
       if (block < 20) break;
       sessions.push({
         id: `plan-${picked.type}-${picked.id}-${date}-${guard}`,

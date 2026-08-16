@@ -1,6 +1,6 @@
 import { niceDate } from '../../lib/dates';
 
-export default function DayDetailModal({ event, onClose, onStartSessionSprint, onToggleSession }) {
+export default function DayDetailModal({ event, onClose, onStartSessionSprint, onToggleSession, onRemoveTest }) {
   if (!event) return null;
   return (
     <div className="overlay" onMouseDown={onClose}>
@@ -16,6 +16,9 @@ export default function DayDetailModal({ event, onClose, onStartSessionSprint, o
                 {event.ref.chapterPlan.map((entry, i) => <li key={i}><b>{niceDate(entry.date)}</b> — {entry.phase} {entry.chapter} ({entry.minutes} min)</li>)}
               </ol>
             ) : <p className="muted">No prep plan yet — add chapters or material when creating this test to get one.</p>}
+            <div className="cal-detail-actions">
+              <button className="remove-analysis" onClick={() => { onRemoveTest(event.id); onClose(); }}>Remove test</button>
+            </div>
           </>
         ) : (
           <>
