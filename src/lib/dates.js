@@ -18,3 +18,11 @@ export const nextWeekdayDate = (name, from = isoToday()) => {
 };
 
 export const timeOfDay = (hour = new Date().getHours()) => (hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening');
+
+// "18:30" -> "6:30 PM"
+export const niceTime = (t) => {
+  const [h, m] = t.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+};

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isoToday, niceDate, WEEKDAYS } from '../lib/dates';
+import { isoToday, niceDate, niceTime, WEEKDAYS } from '../lib/dates';
 import { LEARNING_PREFS } from '../lib/constants';
 import { supabase } from '../supabase';
 
@@ -9,6 +9,7 @@ const ORDERED = WEEKDAYS.slice(1).concat(WEEKDAYS[0]); // Mon..Sun
 export default function Settings({ data, update, notify }) {
   const [profile, setProfile] = useState(data.profile);
   const [customDay, setCustomDay] = useState('');
+  const [blockTime, setBlockTime] = useState({ mode: 'weekly', weekday: 'Mon', date: isoToday(), start: '18:00', end: '20:00', label: '' });
   const save = () => { update('profile')(profile); notify('Settings saved'); };
   const togglePref = (p) => setProfile((pr) => ({ ...pr, learningPreferences: (pr.learningPreferences || []).includes(p) ? pr.learningPreferences.filter((x) => x !== p) : [...(pr.learningPreferences || []), p] }));
 
@@ -27,6 +28,23 @@ export default function Settings({ data, update, notify }) {
   };
   const removeBlockedDate = (d) => setProfile((pr) => ({ ...pr, blockedDates: (pr.blockedDates || []).filter((x) => x !== d) }));
 
+  const addBlockedTime = () => {
+    if (!blockTime.start || !blockTime.end || blockTime.start >= blockTime.end) return;
+    const entry = {
+      id: Date.now(),
+      label: blockTime.label.trim(),
+      start: blockTime.start,
+      end: blockTime.end,
+      weekday: blockTime.mode === 'weekly' ? blockTime.weekday : null,
+      date: blockTime.mode === 'once' ? blockTime.date : null,
+    };
+    setProfile((pr) => ({ ...pr, blockedTimes: [...(pr.blockedTimes || []), entry] }));
+    setBlockTime((b) => ({ ...b, label: '' }));
+  };
+  const removeBlockedTime = (id) => setProfile((pr) => ({ ...pr, blockedTimes: (pr.blockedTimes || []).filter((b) => b.id !== id) }));
+  const weeklyBlocks = (profile.blockedTimes || []).filter((b) => b.weekday);
+  const oneOffBlocks = (profile.blockedTimes || []).filter((b) => b.date);
+
   return (
     <div className="page settings">
       <div className="page-heading"><div><h1>Settings</h1><p>Make Study Sprint feel like yours.</p></div></div>
@@ -43,26 +61,72 @@ export default function Settings({ data, update, notify }) {
       <div className="panel form">
         <h2>Available study time</h2>
         <p className="muted">Some days you have more time than others — StudySprint won't overbook the light days.</p>
-        <label className="toggle-row"><input type="checkbox" checked={customizing} onChange={toggleCustomizing} /> Customize by day of the week</label>
-        {customizing && (
-          <div className="weekday-grid">
-            {ORDERED.map((wd) => (
-              <label key={wd} className="weekday-input">{WEEKDAY_LABELS[wd]}<input type="number" min="0" value={profile.weekdayMinutes[wd] ?? 0} onChange={(e) => setDayMinutes(wd, +e.target.value || 0)} /></label>
-            ))}
-          </div>
-        )}
-        <h3 className="subhead">Days you can't study</h3>
-        <div className="blocked-date-row">
-          <input type="date" min={isoToday()} value={customDay} onChange={(e) => setCustomDay(e.target.value)} />
-          <button type="button" className="primary" onClick={addBlockedDate}>Block this day</button>
+
+        <div className="settings-section">
+          <h3 className="subhead">Weekly schedule</h3>
+          <button type="button" className={'pref-pill' + (customizing ? ' active' : '')} onClick={toggleCustomizing}>{customizing ? '✓ Customized by day' : 'Customize by day of the week'}</button>
+          {customizing && (
+            <div className="weekday-grid">
+              {ORDERED.map((wd) => (
+                <label key={wd} className="weekday-input">{WEEKDAY_LABELS[wd]}<input type="number" min="0" value={profile.weekdayMinutes[wd] ?? 0} onChange={(e) => setDayMinutes(wd, +e.target.value || 0)} /></label>
+              ))}
+            </div>
+          )}
         </div>
-        {!!(profile.blockedDates || []).length && (
-          <ul className="blocked-date-list">
-            {profile.blockedDates.map((d) => (
-              <li key={d}>{niceDate(d)}<button type="button" onClick={() => removeBlockedDate(d)}>×</button></li>
-            ))}
-          </ul>
-        )}
+
+        <div className="settings-section">
+          <h3 className="subhead">Blocked days</h3>
+          <p className="muted">A full day you won't study at all — no time is planned that day.</p>
+          <div className="blocked-date-row">
+            <input type="date" min={isoToday()} value={customDay} onChange={(e) => setCustomDay(e.target.value)} />
+            <button type="button" className="primary" onClick={addBlockedDate}>Block this day</button>
+          </div>
+          {!!(profile.blockedDates || []).length && (
+            <ul className="blocked-date-list">
+              {profile.blockedDates.map((d) => (
+                <li key={d}>{niceDate(d)}<button type="button" onClick={() => removeBlockedDate(d)}>×</button></li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="settings-section">
+          <h3 className="subhead">Blocked times</h3>
+          <p className="muted">A recurring weekly slot (like practice) or a one-time appointment — that time is subtracted from the day's budget instead of clearing the whole day.</p>
+          <div className="blocked-date-row">
+            <select value={blockTime.mode} onChange={(e) => setBlockTime((b) => ({ ...b, mode: e.target.value }))}>
+              <option value="weekly">Every week</option>
+              <option value="once">One date</option>
+            </select>
+            {blockTime.mode === 'weekly' ? (
+              <select value={blockTime.weekday} onChange={(e) => setBlockTime((b) => ({ ...b, weekday: e.target.value }))}>
+                {ORDERED.map((wd) => <option key={wd} value={wd}>{WEEKDAY_LABELS[wd]}</option>)}
+              </select>
+            ) : (
+              <input type="date" min={isoToday()} value={blockTime.date} onChange={(e) => setBlockTime((b) => ({ ...b, date: e.target.value }))} />
+            )}
+            <input type="time" value={blockTime.start} onChange={(e) => setBlockTime((b) => ({ ...b, start: e.target.value }))} />
+            <span className="time-sep">–</span>
+            <input type="time" value={blockTime.end} onChange={(e) => setBlockTime((b) => ({ ...b, end: e.target.value }))} />
+            <input type="text" className="blocked-time-label" placeholder="Label (optional)" value={blockTime.label} onChange={(e) => setBlockTime((b) => ({ ...b, label: e.target.value }))} />
+            <button type="button" className="primary" onClick={addBlockedTime}>Block this time</button>
+          </div>
+          {!!weeklyBlocks.length && (
+            <ul className="blocked-date-list">
+              {weeklyBlocks.map((b) => (
+                <li key={b.id}>Every {WEEKDAY_LABELS[b.weekday]}, {niceTime(b.start)}–{niceTime(b.end)}{b.label ? ` · ${b.label}` : ''}<button type="button" onClick={() => removeBlockedTime(b.id)}>×</button></li>
+              ))}
+            </ul>
+          )}
+          {!!oneOffBlocks.length && (
+            <ul className="blocked-date-list">
+              {oneOffBlocks.map((b) => (
+                <li key={b.id}>{niceDate(b.date)}, {niceTime(b.start)}–{niceTime(b.end)}{b.label ? ` · ${b.label}` : ''}<button type="button" onClick={() => removeBlockedTime(b.id)}>×</button></li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <button className="primary" onClick={save}>Save changes</button>
       </div>
 

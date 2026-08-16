@@ -113,6 +113,7 @@ header{height:100px;padding:25px 5.5%;display:flex;justify-content:space-between
 .bars div{height:100%;width:11%;display:flex;flex-direction:column;justify-content:end;align-items:center;gap:6px}
 .bars i{display:block;width:100%;background:linear-gradient(180deg,#a48bff,#7a63ea);border-radius:5px 5px 2px 2px;box-shadow:0 0 10px #8f7ff84d}
 .bars span{font-size:10px;color:var(--muted)}
+.settings .panel{margin-bottom:20px}
 .form{max-width:600px;display:grid;gap:15px}
 .form label,.modal label{font-size:12px;font-weight:600;color:var(--muted);display:grid;gap:6px}
 .form input,.modal input,.modal select,.form textarea{border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);background:var(--input-bg);font-family:inherit}
@@ -122,7 +123,7 @@ header{height:100px;padding:25px 5.5%;display:flex;justify-content:space-between
 .pref-pill{background:var(--input-bg);border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:8px 14px;font-size:12px;font-weight:600}
 .pref-pill.active{background:#241f47;border-color:#5a4dcf;color:#b5a8ff;box-shadow:0 0 12px #8f7ff840}
 .pref-pill:hover{border-color:#4a4468}
-.data-note{max-width:600px;margin-top:20px}
+.data-note{max-width:600px}
 .data-note p{font-size:13px;color:var(--muted);line-height:1.6}
 .overlay{position:fixed;inset:0;background:#05040acc;z-index:10;display:grid;place-items:center;padding:20px}
 .modal,.timer{position:relative;background:var(--panel-2);width:min(440px,100%);border-radius:18px;padding:30px;box-shadow:0 22px 60px #00000080,0 0 40px #6d5be026;border:1px solid var(--border)}
@@ -313,13 +314,17 @@ header{height:100px;padding:25px 5.5%;display:flex;justify-content:space-between
 
 /* Settings: available time */
 .subhead{font-size:13px;color:var(--text);margin:8px 0 2px}
-.toggle-row{flex-direction:row!important;align-items:center;gap:8px;font-size:13px!important;color:var(--text)!important}
 .weekday-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
 .weekday-input{font-size:11px;color:var(--muted);display:grid;gap:5px}
 .weekday-input input{width:100%}
-.blocked-date-row{display:flex;gap:8px;align-items:end}
-.blocked-date-row input{border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);background:var(--input-bg);font-family:inherit}
-.blocked-date-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.settings-section{display:grid;gap:12px;padding-top:20px;margin-top:6px;border-top:1px solid var(--border-soft)}
+.settings-section .subhead{margin:0}
+.settings-section > .pref-pill{justify-self:start}
+.blocked-date-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.blocked-date-row input,.blocked-date-row select{border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);background:var(--input-bg);font-family:inherit}
+.blocked-time-label{flex:1;min-width:140px}
+.time-sep{color:var(--muted)}
+.blocked-date-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
 .blocked-date-list li{display:flex;align-items:center;gap:6px;background:#241f47;color:#b5a8ff;border-radius:20px;padding:6px 8px 6px 13px;font-size:12px}
 .blocked-date-list button{background:none;color:#b5a8ff;font-size:14px;line-height:1;padding:2px}
 

@@ -1,4 +1,4 @@
-import { isoToday, daysUntil, dateAfter, WEEKDAYS } from './dates';
+import { isoToday, daysUntil, dateAfter, WEEKDAYS, weekdayName } from './dates';
 import { priorityValue, difficultyValue } from './constants';
 import { adjustmentFor } from './personalization';
 import { chapterKey as makeChapterKey } from './examCountdown';
@@ -8,20 +8,33 @@ export const plannedMinutes = (sessions, type, id, completedOnly = true, chapter
     .filter((s) => s.sourceType === type && s.sourceId === id && (chapterKeyFilter === undefined || s.chapterKey === chapterKeyFilter) && (!completedOnly || s.complete))
     .reduce((sum, s) => sum + s.minutes, 0);
 
+const timeToMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+
+// Sums the duration of every blocked time range that applies to `date` — either a one-off block
+// pinned to that exact date, or a recurring block for that weekday.
+const blockedMinutesFor = (blockedTimes, date) => {
+  if (!blockedTimes?.length) return 0;
+  const wd = weekdayName(date);
+  return blockedTimes
+    .filter((b) => b.date === date || (!b.date && b.weekday === wd))
+    .reduce((sum, b) => sum + Math.max(0, timeToMinutes(b.end) - timeToMinutes(b.start)), 0);
+};
+
 // Per-day study capacity: a one-off override (Panic Mode, "I have 30 minutes tonight") wins first,
-// then a blocked date, then a specific-date override, then the student's per-weekday schedule,
-// falling all the way back to the flat daily goal when none of that has been customized.
+// then a blocked date, then a specific-date override, then the student's per-weekday schedule
+// (or the flat daily goal), minus any blocked time ranges that fall on that date.
 export function availableMinutesFor(data, date, overrides = null) {
   if (overrides && overrides[date] != null) return overrides[date];
   const { profile } = data;
   if (profile.blockedDates?.includes(date)) return 0;
   if (profile.dateOverrides?.[date] != null) return profile.dateOverrides[date];
+  let minutes = +profile.dailyGoal || 120;
   if (profile.weekdayMinutes) {
     const wd = WEEKDAYS[new Date(`${date}T12:00:00`).getDay()];
     const val = profile.weekdayMinutes[wd];
-    if (val != null) return val;
+    if (val != null) minutes = val;
   }
-  return +profile.dailyGoal || 120;
+  return Math.max(0, minutes - blockedMinutesFor(profile.blockedTimes, date));
 }
 
 // Turns assignments + tests into a flat list of schedulable work items. A test with a generated

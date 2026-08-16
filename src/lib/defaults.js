@@ -16,6 +16,9 @@ export const defaults = {
     weekdayMinutes: null,
     blockedDates: [],
     dateOverrides: {},
+    // Recurring (weekday set, date null) or one-off (date set, weekday null) time ranges the
+    // planner treats as unavailable, subtracted from that day's minutes rather than zeroing it out.
+    blockedTimes: [],
   },
   assignments: [
     { id: 1, title: 'Chapter 8: Cell Division', course: 'Biology', due: tomorrow, minutes: 75, priority: 'High', done: false, color: '#8b7cf6' },
