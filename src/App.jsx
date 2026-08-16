@@ -149,9 +149,23 @@ function StudyApp({ session }) {
     setData((d) => replan({ ...d, assignments: d.assignments.filter((a) => a.id !== id), sessions: d.sessions.filter((s) => s.sourceId !== id) }));
     notify('Assignment removed — plan refreshed');
   };
+  const removeAssignments = (ids) => {
+    if (!ids.length) return;
+    if (!window.confirm(ids.length === 1 ? 'Remove this assignment?' : `Remove ${ids.length} assignments?`)) return;
+    const idSet = new Set(ids);
+    setData((d) => replan({ ...d, assignments: d.assignments.filter((a) => !idSet.has(a.id)), sessions: d.sessions.filter((s) => !idSet.has(s.sourceId)) }));
+    notify(ids.length === 1 ? 'Assignment removed — plan refreshed' : `${ids.length} assignments removed — plan refreshed`);
+  };
   const removeTest = (id) => {
     if (!window.confirm('Remove this test? Its scheduled study sessions will be removed too.')) return;
     notify(runAction({ type: 'delete_test', payload: { id } }) || 'Test removed — plan refreshed');
+  };
+  const removeTests = (ids) => {
+    if (!ids.length) return;
+    if (!window.confirm(ids.length === 1 ? 'Remove this test? Its scheduled study sessions will be removed too.' : `Remove ${ids.length} tests? Their scheduled study sessions will be removed too.`)) return;
+    const idSet = new Set(ids);
+    setData((d) => replan({ ...d, tests: d.tests.filter((t) => !idSet.has(t.id)), sessions: d.sessions.filter((s) => !(s.sourceType === 'test' && idSet.has(s.sourceId))) }));
+    notify(ids.length === 1 ? 'Test removed — plan refreshed' : `${ids.length} tests removed — plan refreshed`);
   };
   const toggleSession = (id) => {
     const found = data.sessions.find((s) => s.id === id);
@@ -280,7 +294,7 @@ function StudyApp({ session }) {
           />
         )}
         {tab === 'Calendar' && <Calendar data={data} onEditAssignment={setEditing} onToggleSession={toggleSession} onStartSessionSprint={startSessionSprint} onRemoveTest={removeTest} />}
-        {tab === 'Assignments' && <Work data={data} setModal={setModal} setTab={setTab} toggleAssignment={toggleAssignment} removeAssignment={removeAssignment} removeTest={removeTest} startAssignmentSprint={startAssignmentSprint} editAssignment={setEditing} />}
+        {tab === 'Assignments' && <Work data={data} setModal={setModal} setTab={setTab} toggleAssignment={toggleAssignment} removeAssignment={removeAssignment} removeAssignments={removeAssignments} removeTest={removeTest} removeTests={removeTests} startAssignmentSprint={startAssignmentSprint} editAssignment={setEditing} />}
         {tab === 'Practice' && <Quiz profile={data.profile} setTab={setTab} notify={notify} saveAttempt={saveQuizAttempt} addTopicsToWork={addTopicsToWork} />}
         {tab === 'AI Organizer' && <AssistantPanel data={data} onApplyAction={runAction} onOpenPanic={() => setModal('emergency')} />}
         {tab === 'Import Syllabus' && <SyllabusImport data={data} onClose={() => setTab('Assignments')} onImport={importSyllabus} />}

@@ -1,9 +1,6 @@
 import { isoToday, daysUntil } from './dates';
 import { confidentMatch } from './fuzzy';
 import { parseChapters, buildExamPlan } from './examCountdown';
-import { ASSIGNMENT_COLORS } from './constants';
-
-const randomColor = () => ASSIGNMENT_COLORS[Math.floor(Math.random() * ASSIGNMENT_COLORS.length)];
 
 export const SYLLABUS_TYPES = [
   { id: 'assignment', label: 'Assignment' },
@@ -57,7 +54,7 @@ export function applySyllabusImport(data, meta, items, today = isoToday()) {
       const test = {
         id: nextId(), title: item.title.trim(), course: meta.className, date: item.date,
         topics: item.notes || item.rawDateText || '', material: item.notes || '',
-        chapters, studyMinutes: 120, difficulty: 'Medium', color: randomColor(), source: 'syllabus',
+        chapters, studyMinutes: 120, difficulty: 'Medium', source: 'syllabus',
       };
       test.chapterPlan = chapters.length ? buildExamPlan(test, today) : null;
       tests.push(test);
@@ -66,7 +63,7 @@ export function applySyllabusImport(data, meta, items, today = isoToday()) {
       assignments.push({
         id: nextId(), title: item.title.trim(), course: meta.className, due: item.date,
         minutes: MINUTES_BY_TYPE[item.type] || 45, priority: 'Medium', difficulty: 'Medium',
-        material: item.notes || '', done: false, color: randomColor(), source: 'syllabus',
+        material: item.notes || '', done: false, source: 'syllabus',
       });
       addedAssignments++;
     }

@@ -1,4 +1,5 @@
 import { niceDate } from '../lib/dates';
+import { priorityColor } from '../lib/constants';
 
 export const Stat = ({ icon, label, value, note }) => (
   <div className="stat">
@@ -25,7 +26,7 @@ export const Session = ({ s, toggle }) => (
 export const Assignment = ({ a, toggle, remove }) => (
   <div className={'assignment ' + (a.done ? 'done' : '')}>
     <button className="check" aria-label={`Mark ${a.title} complete`} onClick={() => toggle(a.id)}>{a.done ? '✓' : ''}</button>
-    <i style={{ background: a.color }} />
+    <i style={{ background: priorityColor(a.priority) }} />
     <div>
       <b>{a.title}</b>
       <small>{a.course} · Due {niceDate(a.due)}</small>

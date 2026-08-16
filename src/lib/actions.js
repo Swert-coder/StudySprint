@@ -2,9 +2,6 @@ import { isoToday, dateAfter } from './dates';
 import { panicPlan, plannedMinutes } from './planner';
 import { buildExamPlan, parseChapters } from './examCountdown';
 import { confidentMatch } from './fuzzy';
-import { ASSIGNMENT_COLORS } from './constants';
-
-const randomColor = () => ASSIGNMENT_COLORS[Math.floor(Math.random() * ASSIGNMENT_COLORS.length)];
 
 // Actions in this set always require an explicit confirmation tap, no matter what the AI's own
 // `requiresConfirmation` hint says — defense in depth against a bad/ambiguous model response.
@@ -40,7 +37,7 @@ export function applyAction(action, data, today = isoToday()) {
         id: Date.now(), title: payload.title || 'New assignment', course: payload.course || '',
         due: payload.due || dateAfter(today, 1), minutes: +payload.minutes || 45,
         priority: payload.priority || 'Medium', difficulty: payload.difficulty || 'Medium',
-        material: payload.material || '', done: false, color: randomColor(),
+        material: payload.material || '', done: false,
       };
       return { data: { ...data, assignments: [...data.assignments, item] }, message: `Added "${item.title}" — your sprint updated.` };
     }
@@ -50,7 +47,7 @@ export function applyAction(action, data, today = isoToday()) {
         id: Date.now(), title: payload.title || 'New test', course: payload.course || '',
         date: payload.date || dateAfter(today, 7), topics: payload.topics || payload.material || '',
         material: payload.material || '', chapters, studyMinutes: +payload.studyMinutes || 120,
-        difficulty: payload.difficulty || 'Medium', color: randomColor(),
+        difficulty: payload.difficulty || 'Medium',
       };
       test.chapterPlan = chapters.length ? buildExamPlan(test, today) : null;
       return { data: { ...data, tests: [...data.tests, test] }, message: `Added "${test.title}" — a study plan is ready.` };
@@ -161,7 +158,7 @@ export function startSprintFromPicks(data, picks, today = isoToday()) {
 export function addTopicsToWork(data, topics, today = isoToday()) {
   const items = topics.map((t, i) => ({
     id: Date.now() + i, title: `Review: ${t}`, course: data.profile.className || 'Study',
-    due: dateAfter(today, 3), minutes: 40, priority: 'Medium', done: false, color: ASSIGNMENT_COLORS[i % ASSIGNMENT_COLORS.length],
+    due: dateAfter(today, 3), minutes: 40, priority: 'Medium', done: false,
   }));
   return { ...data, assignments: [...data.assignments, ...items] };
 }

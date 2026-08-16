@@ -297,8 +297,12 @@ header{height:100px;padding:25px 5.5%;display:flex;justify-content:space-between
 
 /* Work list buttons */
 .assignment-row{display:flex;align-items:center;gap:7px}
+.select-check{width:17px;height:17px;flex:none;accent-color:#6558d8;cursor:pointer}
 .edit-btn{background:#f7f7fb;color:#77768b;border:1px solid #e8e7f0;border-radius:7px;padding:7px 10px;font-size:11px;font-weight:700}
 .sprint-btn{background:#eeeaff;color:#6558d8;border-radius:7px;padding:7px 11px;font-size:11px;font-weight:700;white-space:nowrap}
+.section-title-actions{display:flex;align-items:center;gap:12px}
+.bulk-delete-btn{background:#3a1620;color:#ff92a4;border-radius:7px;padding:7px 11px;font-size:11px;font-weight:700;white-space:nowrap}
+.bulk-delete-btn:hover{background:#4a1a29}
 
 /* Dashboard progress row */
 .stats-compact{grid-template-columns:repeat(4,1fr);margin:0}

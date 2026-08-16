@@ -1,13 +1,15 @@
+import { priorityColor, difficultyColor } from './constants';
+
 // Pure read-projection over the same data the rest of the app already uses — no separate storage,
 // so anything the AI organizer / command matcher / manual UI changes shows up on the calendar instantly.
 export function eventsFor(data, { from, to }) {
   const inRange = (date) => date >= from && date <= to;
   const events = [];
   for (const a of data.assignments) {
-    if (inRange(a.due)) events.push({ kind: 'assignment', date: a.due, id: a.id, title: a.title, subject: a.course, done: a.done, priority: a.priority, color: a.color, ref: a });
+    if (inRange(a.due)) events.push({ kind: 'assignment', date: a.due, id: a.id, title: a.title, subject: a.course, done: a.done, priority: a.priority, color: priorityColor(a.priority), ref: a });
   }
   for (const t of data.tests) {
-    if (inRange(t.date)) events.push({ kind: 'test', date: t.date, id: t.id, title: t.title, subject: t.course, color: t.color, ref: t });
+    if (inRange(t.date)) events.push({ kind: 'test', date: t.date, id: t.id, title: t.title, subject: t.course, color: difficultyColor(t.difficulty), ref: t });
   }
   for (const s of data.sessions) {
     if (inRange(s.date)) events.push({ kind: 'session', date: s.date, id: s.id, title: s.title, subject: s.subject, minutes: s.minutes, complete: s.complete, generated: s.generated, reason: s.reason, ref: s });

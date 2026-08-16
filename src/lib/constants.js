@@ -9,7 +9,13 @@ export const QUESTION_TYPES = [
 
 export const priorityValue = { High: 3, Medium: 2, Low: 1 };
 export const difficultyValue = { Hard: 3, Medium: 2, Easy: 1 };
-export const ASSIGNMENT_COLORS = ['#8b7cf6', '#38bdf8', '#fb7185', '#f59e0b'];
+
+// Same colors as the .high/.medium/.low priority badge text, so the color bar next to an
+// assignment or test always means the same thing as its badge — never assigned randomly.
+export const PRIORITY_COLORS = { High: '#ff92a4', Medium: '#f0c268', Low: '#6fe0c4' };
+export const DIFFICULTY_COLORS = { Hard: '#ff92a4', Medium: '#f0c268', Easy: '#6fe0c4' };
+export const priorityColor = (priority) => PRIORITY_COLORS[priority] || PRIORITY_COLORS.Medium;
+export const difficultyColor = (difficulty) => DIFFICULTY_COLORS[difficulty] || DIFFICULTY_COLORS.Medium;
 
 export const TIME_BUDGETS = [
   { minutes: 15, label: '15 min' },
