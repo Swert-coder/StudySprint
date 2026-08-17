@@ -7,7 +7,7 @@
 //   supabase secrets set STRIPE_SECRET_KEY=sk_test_... STRIPE_WEBHOOK_SECRET=whsec_...
 //   supabase functions deploy stripe-webhook
 
-import Stripe from 'npm:stripe@17';
+import Stripe from 'npm:stripe@22';
 import { createAdminClient } from '../_shared/subscription.ts';
 
 function json(body: unknown, status = 200) {
@@ -31,6 +31,10 @@ async function upsertFromSubscription(admin: ReturnType<typeof createAdminClient
 
   const toIso = (unixSeconds: number | null | undefined) => (unixSeconds ? new Date(unixSeconds * 1000).toISOString() : null);
 
+  // As of the 2025-03-31.basil API version, current_period_start/end moved off the Subscription
+  // object onto each subscription item — StudySprint only ever puts one price on a subscription.
+  const item = sub.items.data[0];
+
   const payload = {
     user_id: userId,
     stripe_customer_id: customerId,
@@ -39,8 +43,8 @@ async function upsertFromSubscription(admin: ReturnType<typeof createAdminClient
     plan: planForStatus(sub.status),
     trial_start: toIso(sub.trial_start),
     trial_end: toIso(sub.trial_end),
-    current_period_start: toIso(sub.current_period_start),
-    current_period_end: toIso(sub.current_period_end),
+    current_period_start: toIso(item?.current_period_start),
+    current_period_end: toIso(item?.current_period_end),
     cancel_at_period_end: !!sub.cancel_at_period_end,
     canceled_at: toIso(sub.canceled_at),
     updated_at: new Date().toISOString(),
@@ -96,7 +100,7 @@ Deno.serve(async (req) => {
   if (!signature) return json({ error: 'Missing signature' }, 400);
   const rawBody = await req.text();
 
-  const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20', httpClient: Stripe.createFetchHttpClient() });
+  const stripe = new Stripe(secretKey, { apiVersion: '2026-07-29.dahlia', httpClient: Stripe.createFetchHttpClient() });
 
   let event: Stripe.Event;
   try {

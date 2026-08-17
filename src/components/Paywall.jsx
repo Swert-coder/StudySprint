@@ -59,3 +59,37 @@ export default function Paywall({ reason, onClose }) {
 export function PaywallInline({ reason }) {
   return <div className="panel paywall-inline"><PaywallCard reason={reason} /></div>;
 }
+
+// Compact upgrade banner for the Dashboard — same checkout flow as PaywallCard, just a shorter
+// pitch so it reads as a natural part of the page rather than a full-blown ad. Caller is
+// responsible for only rendering this to free-plan users.
+export function ProUpgradeCard() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const upgrade = async () => {
+    setError(''); setLoading(true);
+    try {
+      await startProCheckout(); // redirects the browser on success — no further state to set
+    } catch (err) {
+      setError(err.message || 'Could not start checkout. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className="pro-upsell">
+      <div className="pro-upsell-copy">
+        <span className="eyebrow">STUDYSPRINT PRO</span>
+        <h2>Study faster with Pro</h2>
+        <p>Higher AI limits across the Organizer, Analyzer, Quiz Maker, and Syllabus Import — plus deeper, more personalized results.</p>
+        {error && <div className="auth-message error">{error}</div>}
+      </div>
+      <div className="pro-upsell-action">
+        <div className="paywall-price"><span className="paywall-amount">$5.99</span><span className="paywall-period">/month</span></div>
+        <p className="paywall-trial">7-day free trial</p>
+        <button className="primary paywall-cta" disabled={loading} onClick={upgrade}>{loading ? 'Starting checkout…' : 'Start Free Trial'}</button>
+      </div>
+    </section>
+  );
+}

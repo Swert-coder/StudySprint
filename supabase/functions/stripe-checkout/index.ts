@@ -8,7 +8,7 @@
 //   supabase secrets set STRIPE_SECRET_KEY=sk_test_... STRIPE_PRICE_ID_PRO=price_... APP_URL=https://your-app-url
 //   supabase functions deploy stripe-checkout
 
-import Stripe from 'npm:stripe@17';
+import Stripe from 'npm:stripe@22';
 import { authenticateRequest, createAdminClient } from '../_shared/subscription.ts';
 
 const CORS_HEADERS = {
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
   const appUrl = (Deno.env.get('APP_URL') || req.headers.get('origin') || '').replace(/\/$/, '');
   if (!appUrl) return json({ error: "Couldn't determine where to send you back after checkout. Ask your developer to set APP_URL." }, 500);
 
-  const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20', httpClient: Stripe.createFetchHttpClient() });
+  const stripe = new Stripe(secretKey, { apiVersion: '2026-07-29.dahlia', httpClient: Stripe.createFetchHttpClient() });
 
   try {
     const { data: existing } = await admin

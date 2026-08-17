@@ -10,7 +10,7 @@
 // Requires the caller's Supabase session and enforces StudySprint's server-side AI usage limits
 // (see supabase/functions/_shared/subscription.ts) before spending an Anthropic call.
 
-import { authenticateRequest, checkAndConsumeUsage, createAdminClient, getUserSubscriptionStatus, limitReachedMessage } from '../_shared/subscription.ts';
+import { authenticateRequest, checkAndConsumeUsage, createAdminClient, getUserSubscriptionStatus, limitReachedResponse } from '../_shared/subscription.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
 
   const subscription = await getUserSubscriptionStatus(admin, user.id);
   const usage = await checkAndConsumeUsage(admin, user.id, 'organizer', subscription.plan);
-  if (!usage.allowed) return json({ error: limitReachedMessage('organizer'), code: 'limit_reached' }, 403);
+  if (!usage.allowed) return json(limitReachedResponse('organizer', subscription.plan, usage.count, usage.limit), 403);
 
   const today = String(body?.today || new Date().toISOString().slice(0, 10));
   const profile = body?.profile || {};

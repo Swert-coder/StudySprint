@@ -94,6 +94,7 @@ export default function Settings({ data, update, notify, userId }) {
           </>
         ) : (
           <>
+            <p className="sub-status-line"><span className="free-badge">FREE</span> Upgrade anytime for higher AI usage limits and deeper results.</p>
             {subError && <div className="auth-message error">{subError}</div>}
             <PaywallInline />
           </>

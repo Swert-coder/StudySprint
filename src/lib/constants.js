@@ -21,8 +21,8 @@ export const difficultyColor = (difficulty) => DIFFICULTY_COLORS[difficulty] || 
 // enforces these — this copy exists only so the UI can show "N left this month" without a round
 // trip. If you change the server-side limits, update this too so the display stays accurate.
 export const AI_USAGE_LIMITS = {
-  free: { organizer: 8, syllabus: 3, analyzer: 5, quiz: 5 },
-  pro: { organizer: 300, syllabus: 60, analyzer: 100, quiz: 150 },
+  free: { organizer: 8, syllabus: 2, analyzer: 5, quiz: 5 },
+  pro: { organizer: 50, syllabus: 10, analyzer: 30, quiz: 30 },
 };
 
 export const TIME_BUDGETS = [

@@ -323,6 +323,7 @@ function StudyApp({ session }) {
             onStartSprintPicks={startSprintFromRightNow}
             onOpenPanic={() => setModal('emergency')}
             onStartTodaySprint={startTodaySprint}
+            userId={userId}
           />
         )}
         {tab === 'Calendar' && <Calendar data={data} onEditAssignment={setEditing} onToggleSession={toggleSession} onStartSessionSprint={startSessionSprint} onRemoveTest={removeTest} />}

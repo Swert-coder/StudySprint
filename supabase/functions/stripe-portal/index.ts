@@ -6,7 +6,7 @@
 //   supabase secrets set STRIPE_SECRET_KEY=sk_test_... APP_URL=https://your-app-url
 //   supabase functions deploy stripe-portal
 
-import Stripe from 'npm:stripe@17';
+import Stripe from 'npm:stripe@22';
 import { authenticateRequest, createAdminClient } from '../_shared/subscription.ts';
 
 const CORS_HEADERS = {
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
   const { data: row } = await admin.from('subscriptions').select('stripe_customer_id').eq('user_id', user.id).maybeSingle();
   if (!row?.stripe_customer_id) return json({ error: 'Start a subscription first to manage billing.' }, 400);
 
-  const stripe = new Stripe(secretKey, { apiVersion: '2024-06-20', httpClient: Stripe.createFetchHttpClient() });
+  const stripe = new Stripe(secretKey, { apiVersion: '2026-07-29.dahlia', httpClient: Stripe.createFetchHttpClient() });
 
   try {
     const portal = await stripe.billingPortal.sessions.create({ customer: row.stripe_customer_id, return_url: `${appUrl}/` });

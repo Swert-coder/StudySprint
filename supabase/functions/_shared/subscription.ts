@@ -10,15 +10,15 @@ export type Plan = 'free' | 'pro';
 
 // Free vs. Pro monthly AI request limits. Tune these here — nothing else needs to change.
 export const USAGE_LIMITS: Record<Plan, Record<Feature, number>> = {
-  free: { organizer: 8, syllabus: 3, analyzer: 5, quiz: 5 },
-  pro: { organizer: 300, syllabus: 60, analyzer: 100, quiz: 150 },
+  free: { organizer: 8, syllabus: 2, analyzer: 5, quiz: 5 },
+  pro: { organizer: 50, syllabus: 10, analyzer: 30, quiz: 30 },
 };
 
 const FEATURE_LABELS: Record<Feature, string> = {
   organizer: 'AI Organizer',
-  syllabus: 'syllabus upload',
+  syllabus: 'Syllabus AI processing',
   analyzer: 'AI Analyzer',
-  quiz: 'quiz generation',
+  quiz: 'Practice Quiz Maker',
 };
 
 export function createAdminClient(): SupabaseClient {
@@ -81,4 +81,22 @@ export async function checkAndConsumeUsage(admin: SupabaseClient, userId: string
 
 export function limitReachedMessage(feature: Feature): string {
   return `You've reached your free ${FEATURE_LABELS[feature]} limit. Upgrade to StudySprint Pro for higher AI usage and unlimited access to advanced StudySprint features.`;
+}
+
+// The structured body every Edge Function returns when checkAndConsumeUsage() reports the caller
+// is over their monthly limit — the frontend's Paywall component reads `code`/`error`, and the
+// extra fields let it (or any future UI) show exactly which feature, how much was used, and
+// whether upgrading would even help (a Pro user maxing out their own higher limit is not
+// "upgrade eligible" — there's no higher plan to sell them).
+export function limitReachedResponse(feature: Feature, plan: Plan, current: number, limit: number) {
+  return {
+    error: limitReachedMessage(feature),
+    code: 'limit_reached' as const,
+    feature,
+    featureLabel: FEATURE_LABELS[feature],
+    plan,
+    current,
+    limit,
+    upgradeEligible: plan === 'free',
+  };
 }

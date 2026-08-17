@@ -1,12 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { isoToday, daysUntil } from '../lib/dates';
 import { plannedMinutes } from '../lib/planner';
+import { fetchSubscription } from '../lib/subscription';
 import { Stat, Assignment } from './shared';
 import Empty from './Empty';
 import RightNow from './RightNow';
+import { ProUpgradeCard } from './Paywall';
 
-export default function Dashboard({ data, completed, totalToday, pending, setModal, toggleSession, toggleAssignment, removeAssignment, isFirstLogin, onStartSprintPicks, onOpenPanic, onStartTodaySprint }) {
+export default function Dashboard({ data, completed, totalToday, pending, setModal, toggleSession, toggleAssignment, removeAssignment, isFirstLogin, onStartSprintPicks, onOpenPanic, onStartTodaySprint, userId }) {
   const [why, setWhy] = useState(null);
+  const [subscription, setSubscription] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSubscription(userId).then((s) => { if (!cancelled) setSubscription(s); }).catch(() => {}); // upsell is display-only — skip it silently if this fails
+    return () => { cancelled = true; };
+  }, [userId]);
   const today = isoToday();
   const blocks = data.sessions.filter((s) => s.date === today);
   const remaining = blocks.filter((s) => !s.complete).reduce((n, s) => n + s.minutes, 0);
@@ -56,6 +65,8 @@ export default function Dashboard({ data, completed, totalToday, pending, setMod
           </>
         )}
       </section>
+
+      {subscription && !subscription.isPro && <ProUpgradeCard />}
 
       <section className="dashboard-lower">
         <div className="panel">
