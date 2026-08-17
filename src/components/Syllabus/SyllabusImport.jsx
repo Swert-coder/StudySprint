@@ -3,8 +3,10 @@ import { extractText } from '../../extract';
 import { parseSyllabus } from '../../lib/aiClient';
 import { isoToday } from '../../lib/dates';
 import SyllabusReview from './SyllabusReview';
+import Paywall from '../Paywall';
+import UsageBadge from '../UsageBadge';
 
-export default function SyllabusImport({ data, onClose, onImport }) {
+export default function SyllabusImport({ data, onClose, onImport, userId }) {
   const [inputMode, setInputMode] = useState('file');
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('');
@@ -14,6 +16,7 @@ export default function SyllabusImport({ data, onClose, onImport }) {
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState('');
   const [extraction, setExtraction] = useState(null);
+  const [paywall, setPaywall] = useState('');
 
   const onFile = async (e) => {
     const f = e.target.files[0];
@@ -47,6 +50,7 @@ export default function SyllabusImport({ data, onClose, onImport }) {
       }
       setExtraction(res);
     } catch (err) {
+      if (err.code === 'limit_reached') { setPaywall(err.message); return; }
       setError(err.message || 'Something went wrong reading this syllabus.');
     } finally {
       setParsing(false);
@@ -72,6 +76,7 @@ export default function SyllabusImport({ data, onClose, onImport }) {
         <button className="edit-btn" onClick={onClose}>← Back to Assignments</button>
       </div>
       <div className="panel privacy-note"><b>🔒 Private by design</b><p>Your file is read right here in your browser and never uploaded anywhere. Only the text you approve below is sent to build the extraction.</p></div>
+      <UsageBadge userId={userId} feature="syllabus" />
       <div className="panel upload-panel">
         <div className="input-mode-toggle">
           <button type="button" className={inputMode === 'file' ? 'active' : ''} onClick={() => setInputMode('file')}>Upload file</button>
@@ -102,6 +107,7 @@ export default function SyllabusImport({ data, onClose, onImport }) {
           </div>
         )}
       </div>
+      {paywall && <Paywall reason={paywall} onClose={() => setPaywall('')} />}
     </div>
   );
 }

@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { supabase } from '../supabase';
 import { extractText } from '../extract';
 import { isoToday, niceDate } from '../lib/dates';
+import Paywall from './Paywall';
+import UsageBadge from './UsageBadge';
 
-export default function Analyzer({ data, profile, setTab, notify, addAnalysis, removeAnalysis, addTopicsToWork }) {
+export default function Analyzer({ data, profile, setTab, notify, addAnalysis, removeAnalysis, addTopicsToWork, userId }) {
   const [inputMode, setInputMode] = useState('file');
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('');
@@ -13,6 +15,7 @@ export default function Analyzer({ data, profile, setTab, notify, addAnalysis, r
   const [analyzing, setAnalyzing] = useState(false);
   const [report, setReport] = useState(null);
   const [error, setError] = useState('');
+  const [paywall, setPaywall] = useState('');
   const profileReady = profile.gradeLevel && profile.className;
 
   const onFile = async (e) => {
@@ -44,7 +47,10 @@ export default function Analyzer({ data, profile, setTab, notify, addAnalysis, r
         body: { text: extractedText, profile: { gradeLevel: profile.gradeLevel, className: profile.className, typicalGrade: profile.typicalGrade, learningPreferences: profile.learningPreferences, accommodations: profile.accommodations } },
       });
       if (fnError) throw new Error(fnError.message || 'The analyzer could not be reached.');
-      if (res?.error) throw new Error(res.error);
+      if (res?.error) {
+        if (res.code === 'limit_reached') { setPaywall(res.error); return; }
+        throw new Error(res.error);
+      }
       setReport(res.report);
       addAnalysis({ id: Date.now(), date: isoToday(), fileName: file?.name || 'Uploaded work', report: res.report });
       notify('Analysis ready');
@@ -59,6 +65,7 @@ export default function Analyzer({ data, profile, setTab, notify, addAnalysis, r
     <div className="page analyzer">
       <div className="page-heading"><div><h1>Study Analyzer</h1><p>Upload your work and get feedback on strengths, weak spots, and what to study next.</p></div></div>
       <div className="panel privacy-note"><b>🔒 Private by design</b><p>Your file is read right here in your browser and never uploaded anywhere. Only the text you approve below is sent for feedback — review or edit it first, and delete any analysis anytime.</p></div>
+      <UsageBadge userId={userId} feature="analyzer" />
       {!profileReady && <div className="panel analyzer-hint"><p>Add your grade level and class in <button onClick={() => setTab('Settings')}>Settings</button> for feedback tailored to you — or analyze without it.</p></div>}
       <div className="panel upload-panel">
         <div className="input-mode-toggle">
@@ -97,6 +104,7 @@ export default function Analyzer({ data, profile, setTab, notify, addAnalysis, r
           {data.analyses.map((a) => <AnalysisHistoryItem key={a.id} a={a} onRemove={() => removeAnalysis(a.id)} onAddTopics={() => addTopicsToWork(a.report.difficultTopics)} />)}
         </div>
       )}
+      {paywall && <Paywall reason={paywall} onClose={() => setPaywall('')} />}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import QuizGenerator from './QuizGenerator';
 import QuizRunner from './QuizRunner';
 import QuizResults from './QuizResults';
 
-export default function Quiz({ profile, setTab, notify, saveAttempt, addTopicsToWork }) {
+export default function Quiz({ profile, setTab, notify, saveAttempt, addTopicsToWork, userId }) {
   const [stage, setStage] = useState('setup');
   const [quiz, setQuiz] = useState(null);
   const [attempt, setAttempt] = useState(null);
@@ -16,7 +16,7 @@ export default function Quiz({ profile, setTab, notify, saveAttempt, addTopicsTo
   return (
     <div className="page analyzer">
       <div className="page-heading"><div><h1>Practice Quiz</h1><p>Test yourself on what you're studying.</p></div></div>
-      {stage === 'setup' && <QuizGenerator profile={profile} setTab={setTab} onGenerated={onGenerated} />}
+      {stage === 'setup' && <QuizGenerator profile={profile} setTab={setTab} onGenerated={onGenerated} userId={userId} />}
       {stage === 'running' && quiz && <QuizRunner quiz={quiz} profile={profile} onFinished={onFinished} />}
       {stage === 'results' && attempt && (
         <QuizResults

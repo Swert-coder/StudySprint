@@ -6,6 +6,7 @@ import { makeSmartPlan, panicPlan } from './lib/planner';
 import { recordActual, recordCompletionHour } from './lib/personalization';
 import { applyAction, addTopicsToWork as libAddTopicsToWork, startSprintFromPicks } from './lib/actions';
 import { applySyllabusImport } from './lib/syllabus';
+import { fetchSubscription } from './lib/subscription';
 
 import { AuthConfiguration, AuthLoading, AuthPage, ResetPassword } from './components/Auth/Auth';
 import Icon from './components/Icon';
@@ -103,6 +104,37 @@ function StudyApp({ session }) {
     const interval = setInterval(tick, 60000);
     return () => clearInterval(interval);
   }, [today]);
+
+  // Stripe redirects back here with ?checkout=success|cancel. That query param is only ever a UI
+  // hint to show a toast and poll — it never grants Pro access by itself. The webhook is what
+  // actually updates the subscriptions row; this just re-reads it a few times until it catches up.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get('checkout');
+    if (!checkout) return;
+    const cleanUrl = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('checkout');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    };
+    const flash = (msg) => { setToast(msg); setTimeout(() => setToast(''), 4000); };
+    if (checkout === 'cancel') { flash('Checkout canceled — no changes were made.'); cleanUrl(); return; }
+    if (checkout !== 'success') { cleanUrl(); return; }
+    flash('Payment received — activating StudySprint Pro…');
+    let cancelled = false;
+    let attempts = 0;
+    const poll = async () => {
+      if (cancelled) return;
+      attempts += 1;
+      try {
+        const sub = await fetchSubscription(userId);
+        if (sub.isPro) { flash('StudySprint Pro is active — enjoy!'); cleanUrl(); return; }
+      } catch { /* keep polling silently — the webhook may just need another moment */ }
+      if (attempts < 6) setTimeout(poll, 1500); else cleanUrl();
+    };
+    poll();
+    return () => { cancelled = true; };
+  }, [userId]);
 
   if (loadError) {
     return (
@@ -295,13 +327,13 @@ function StudyApp({ session }) {
         )}
         {tab === 'Calendar' && <Calendar data={data} onEditAssignment={setEditing} onToggleSession={toggleSession} onStartSessionSprint={startSessionSprint} onRemoveTest={removeTest} />}
         {tab === 'Assignments' && <Work data={data} setModal={setModal} setTab={setTab} toggleAssignment={toggleAssignment} removeAssignment={removeAssignment} removeAssignments={removeAssignments} removeTest={removeTest} removeTests={removeTests} startAssignmentSprint={startAssignmentSprint} editAssignment={setEditing} />}
-        {tab === 'Practice' && <Quiz profile={data.profile} setTab={setTab} notify={notify} saveAttempt={saveQuizAttempt} addTopicsToWork={addTopicsToWork} />}
-        {tab === 'AI Organizer' && <AssistantPanel data={data} onApplyAction={runAction} onOpenPanic={() => setModal('emergency')} />}
-        {tab === 'Import Syllabus' && <SyllabusImport data={data} onClose={() => setTab('Assignments')} onImport={importSyllabus} />}
+        {tab === 'Practice' && <Quiz profile={data.profile} setTab={setTab} notify={notify} saveAttempt={saveQuizAttempt} addTopicsToWork={addTopicsToWork} userId={userId} />}
+        {tab === 'AI Organizer' && <AssistantPanel data={data} onApplyAction={runAction} onOpenPanic={() => setModal('emergency')} userId={userId} />}
+        {tab === 'Import Syllabus' && <SyllabusImport data={data} onClose={() => setTab('Assignments')} onImport={importSyllabus} userId={userId} />}
         {tab === 'Study plan' && <Plan data={data} createPlan={createPlan} toggleSession={toggleSession} />}
         {tab === 'Progress' && <Progress data={data} completed={completed} />}
-        {tab === 'Analyzer' && <Analyzer data={data} profile={data.profile} setTab={setTab} notify={notify} addAnalysis={addAnalysis} removeAnalysis={removeAnalysis} addTopicsToWork={addTopicsToWork} />}
-        {tab === 'Settings' && <Settings data={data} update={update} notify={notify} />}
+        {tab === 'Analyzer' && <Analyzer data={data} profile={data.profile} setTab={setTab} notify={notify} addAnalysis={addAnalysis} removeAnalysis={removeAnalysis} addTopicsToWork={addTopicsToWork} userId={userId} />}
+        {tab === 'Settings' && <Settings data={data} update={update} notify={notify} userId={userId} />}
       </main>
 
       {modal && (modal === 'emergency' ? <EmergencyModal onClose={() => setModal(null)} onChoose={emergencyPlan} /> : <Modal type={modal} onClose={() => setModal(null)} onSave={addItem} />)}

@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { supabase } from '../../supabase';
 import { extractText } from '../../extract';
 import { QUESTION_TYPES } from '../../lib/constants';
+import Paywall from '../Paywall';
+import UsageBadge from '../UsageBadge';
 
-export default function QuizGenerator({ profile, setTab, onGenerated }) {
+export default function QuizGenerator({ profile, setTab, onGenerated, userId }) {
   const [inputMode, setInputMode] = useState('file');
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('');
@@ -16,6 +18,7 @@ export default function QuizGenerator({ profile, setTab, onGenerated }) {
   const [count, setCount] = useState(5);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [paywall, setPaywall] = useState('');
   const profileReady = profile.gradeLevel && profile.className;
 
   const onFile = async (e) => {
@@ -49,7 +52,10 @@ export default function QuizGenerator({ profile, setTab, onGenerated }) {
         body: { text: extractedText, types, count, difficulty, profile: { gradeLevel: profile.gradeLevel, className: profile.className } },
       });
       if (fnError) throw new Error(fnError.message || 'The quiz generator could not be reached.');
-      if (res?.error) throw new Error(res.error);
+      if (res?.error) {
+        if (res.code === 'limit_reached') { setPaywall(res.error); return; }
+        throw new Error(res.error);
+      }
       onGenerated({ questions: res.quiz.questions, sourceText: extractedText, types, count, difficulty, subject: subject || profile.className || 'Study' });
     } catch (err) {
       setError(err.message || 'Something went wrong generating this quiz.');
@@ -61,6 +67,7 @@ export default function QuizGenerator({ profile, setTab, onGenerated }) {
   return (
     <div className="quiz-setup">
       <div className="panel privacy-note"><b>🔒 Private by design</b><p>Your file is read right here in your browser and never uploaded anywhere. Only the text you approve is sent to build your quiz.</p></div>
+      <UsageBadge userId={userId} feature="quiz" />
       {!profileReady && <div className="panel analyzer-hint"><p>Add your grade level and class in <button onClick={() => setTab('Settings')}>Settings</button> for a quiz tailored to you — or generate one without it.</p></div>}
 
       <div className="panel upload-panel">
@@ -101,6 +108,7 @@ export default function QuizGenerator({ profile, setTab, onGenerated }) {
           <button className="primary quiz-start-btn" disabled={generating || !types.length} onClick={startQuiz}>{generating ? 'Building your quiz…' : 'Start quiz'}</button>
         </div>
       )}
+      {paywall && <Paywall reason={paywall} onClose={() => setPaywall('')} />}
     </div>
   );
 }

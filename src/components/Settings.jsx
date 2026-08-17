@@ -1,13 +1,39 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { isoToday, niceDate, niceTime, WEEKDAYS } from '../lib/dates';
 import { LEARNING_PREFS } from '../lib/constants';
 import { supabase } from '../supabase';
+import { fetchSubscription, openBillingPortal } from '../lib/subscription';
+import { PaywallInline } from './Paywall';
 
 const WEEKDAY_LABELS = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday' };
 const ORDERED = WEEKDAYS.slice(1).concat(WEEKDAYS[0]); // Mon..Sun
 
-export default function Settings({ data, update, notify }) {
+export default function Settings({ data, update, notify, userId }) {
   const [profile, setProfile] = useState(data.profile);
+  const [subscription, setSubscription] = useState(null);
+  const [subLoading, setSubLoading] = useState(true);
+  const [subError, setSubError] = useState('');
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSubLoading(true);
+    fetchSubscription(userId)
+      .then((s) => { if (!cancelled) setSubscription(s); })
+      .catch((err) => { if (!cancelled) setSubError(err.message); })
+      .finally(() => { if (!cancelled) setSubLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  const manageBilling = async () => {
+    setSubError(''); setPortalLoading(true);
+    try {
+      await openBillingPortal(); // redirects on success
+    } catch (err) {
+      setSubError(err.message || 'Could not open the billing portal.');
+      setPortalLoading(false);
+    }
+  };
   const [customDay, setCustomDay] = useState('');
   const [blockTime, setBlockTime] = useState({ mode: 'weekly', weekday: 'Mon', date: isoToday(), start: '18:00', end: '20:00', label: '' });
   const save = () => { update('profile')(profile); notify('Settings saved'); };
@@ -48,6 +74,31 @@ export default function Settings({ data, update, notify }) {
   return (
     <div className="page settings">
       <div className="page-heading"><div><h1>Settings</h1><p>Make Study Sprint feel like yours.</p></div></div>
+
+      <div className="panel form subscription-panel">
+        <h2>Subscription</h2>
+        {subLoading ? (
+          <p className="muted">Loading your plan…</p>
+        ) : subscription?.isPro ? (
+          <>
+            <p className="sub-status-line">
+              <span className="pro-badge">PRO</span>
+              {subscription.isTrialing
+                ? ` Free trial — ${subscription.trialDaysLeft} day${subscription.trialDaysLeft === 1 ? '' : 's'} left`
+                : subscription.cancelAtPeriodEnd
+                  ? ` Cancels ${subscription.currentPeriodEnd ? niceDate(subscription.currentPeriodEnd.slice(0, 10)) : 'soon'} — you'll keep Pro access until then`
+                  : ' Active — thanks for supporting StudySprint!'}
+            </p>
+            {subError && <div className="auth-message error">{subError}</div>}
+            <button className="primary" disabled={portalLoading} onClick={manageBilling}>{portalLoading ? 'Opening billing…' : 'Manage subscription'}</button>
+          </>
+        ) : (
+          <>
+            {subError && <div className="auth-message error">{subError}</div>}
+            <PaywallInline />
+          </>
+        )}
+      </div>
 
       <div className="panel form">
         <h2>Your profile</h2>

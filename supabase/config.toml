@@ -1,0 +1,7 @@
+project_id = "ikfmfzljomuywlnnhzyu"
+
+# Stripe calls this endpoint directly with its own signature, not a Supabase session, so it can't
+# go through the platform's JWT gate — the function verifies the Stripe signature itself instead.
+# Every other function keeps the default (verify_jwt = true).
+[functions.stripe-webhook]
+verify_jwt = false

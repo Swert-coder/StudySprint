@@ -6,6 +6,11 @@
 // ANTHROPIC_API_KEY secret as analyze-work:
 //   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 //   supabase functions deploy generate-quiz
+//
+// Requires the caller's Supabase session and enforces StudySprint's server-side AI usage limits
+// (see supabase/functions/_shared/subscription.ts) before spending an Anthropic call.
+
+import { authenticateRequest, checkAndConsumeUsage, createAdminClient, getUserSubscriptionStatus, limitReachedMessage } from '../_shared/subscription.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -72,6 +77,10 @@ Deno.serve(async (req) => {
     return json({ error: "The quiz generator isn't configured yet — ask your developer to set the ANTHROPIC_API_KEY secret on this Supabase project." }, 500);
   }
 
+  const admin = createAdminClient();
+  const user = await authenticateRequest(req, admin);
+  if (!user) return json({ error: 'Please sign in again.' }, 401);
+
   let body: any;
   try {
     body = await req.json();
@@ -82,6 +91,10 @@ Deno.serve(async (req) => {
   const text = String(body?.text || '').trim();
   if (!text) return json({ error: 'No text was provided to generate a quiz from.' }, 400);
   const trimmedText = text.slice(0, MAX_TEXT_LENGTH);
+
+  const subscription = await getUserSubscriptionStatus(admin, user.id);
+  const usage = await checkAndConsumeUsage(admin, user.id, 'quiz', subscription.plan);
+  if (!usage.allowed) return json({ error: limitReachedMessage('quiz'), code: 'limit_reached' }, 403);
 
   const types = Array.isArray(body?.types) ? body.types.filter((t: unknown) => VALID_TYPES.includes(String(t))) : [];
   if (!types.length) return json({ error: 'Choose at least one question type.' }, 400);

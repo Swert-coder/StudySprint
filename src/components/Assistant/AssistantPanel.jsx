@@ -4,6 +4,8 @@ import { matchLocalCommand } from '../../lib/commandMatcher';
 import { needsConfirmation } from '../../lib/actions';
 import { callAssistant } from '../../lib/aiClient';
 import AssistantMessage from './AssistantMessage';
+import Paywall from '../Paywall';
+import UsageBadge from '../UsageBadge';
 
 const SUGGESTIONS = [
   'I have a biology test next Thursday on chapters 4 through 6',
@@ -37,10 +39,11 @@ function dedupeActions(actions) {
   });
 }
 
-export default function AssistantPanel({ data, onApplyAction, onOpenPanic }) {
+export default function AssistantPanel({ data, onApplyAction, onOpenPanic, userId }) {
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [paywall, setPaywall] = useState('');
   const confirmedRef = useRef(false);
   const today = isoToday();
   const history = data.assistant?.history || [];
@@ -73,6 +76,7 @@ export default function AssistantPanel({ data, onApplyAction, onOpenPanic }) {
       for (const a of autoApply) onLogAssistant(onApplyAction(a));
       if (toConfirm.length) { confirmedRef.current = false; setPending(toConfirm); }
     } catch (err) {
+      if (err.code === 'limit_reached') { setPaywall(err.message); return; }
       onLogAssistant(err.message || 'Something went wrong reaching the AI organizer.');
     } finally {
       setLoading(false);
@@ -98,6 +102,7 @@ export default function AssistantPanel({ data, onApplyAction, onOpenPanic }) {
   return (
     <div className="page assistant-page">
       <div className="page-heading"><div><h1>AI Organizer</h1><p>Tell it what's on your plate, or ask it to change your plan.</p></div></div>
+      <UsageBadge userId={userId} feature="organizer" />
       <div className="panel assistant-panel">
         <div className="assistant-transcript">
           {!history.length && (
@@ -123,6 +128,7 @@ export default function AssistantPanel({ data, onApplyAction, onOpenPanic }) {
           <button type="submit" className="primary" disabled={loading || !draft.trim()}>Send</button>
         </form>
       </div>
+      {paywall && <Paywall reason={paywall} onClose={() => setPaywall('')} />}
     </div>
   );
 }

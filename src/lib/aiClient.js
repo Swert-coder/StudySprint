@@ -1,6 +1,13 @@
 import { supabase } from '../supabase';
 import { isoToday, daysUntil } from './dates';
 
+// Tags an Error with a machine-readable code (e.g. 'limit_reached') from an Edge Function
+// response, so callers can show the Pro paywall instead of a generic error toast.
+function withCode(err, code) {
+  if (code) err.code = code;
+  return err;
+}
+
 // Trimmed to what the model actually needs — keeps the prompt small and avoids sending the
 // student's entire history for a single natural-language request.
 function workloadSnapshot(data, today) {
@@ -29,7 +36,7 @@ export async function callAssistant(message, data, today = isoToday()) {
     },
   });
   if (error) throw new Error(error.message || 'The AI organizer could not be reached.');
-  if (res?.error) throw new Error(res.error);
+  if (res?.error) throw withCode(new Error(res.error), res.code);
   return res; // { reply, actions }
 }
 
@@ -47,7 +54,7 @@ export async function parseSyllabus(text, today = isoToday()) {
   if (!supabase) throw new Error('Syllabus import needs a connected backend.');
   const { data: res, error } = await supabase.functions.invoke('parse-syllabus', { body: { text, today } });
   if (error) throw new Error(error.message || 'The syllabus reader could not be reached.');
-  if (res?.error) throw new Error(res.error);
+  if (res?.error) throw withCode(new Error(res.error), res.code);
   // The model isn't schema-constrained on array length, so cap defensively.
   return { ...res, items: (res.items || []).slice(0, 80) }; // { className, teacher, term, gradingInfo, items }
 }
